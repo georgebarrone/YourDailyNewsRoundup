@@ -23,17 +23,17 @@ import requests
 from google import genai
 from PIL import Image, ImageDraw, ImageFont
 
-from movie_releases import get_weekly_movies, REGAL_MOVIES_URL, TMDB_LOGO
+from movie_releases import get_weekly_movies, REGAL_MOVIES_URL, PREFERRED_REGAL_THEATERS, TMDB_LOGO
 
 ROOT = Path(__file__).resolve().parent
-CATEGORIES = ["politics", "local", "obituaries", "technology", "gaming", "entertainment"]
+CATEGORIES = ["politics", "local", "entertainment", "technology", "gaming", "obituaries"]
 LABELS = {
     "politics": "POLITICS & WORLD",
     "local": "LOS ANGELES & THE SAN GABRIEL VALLEY",
     "obituaries": "IN MEMORIAM",
     "technology": "TECHNOLOGY",
-    "gaming": "GAMING",
     "entertainment": "MOVIES, TELEVISION & ENTERTAINMENT",
+    "gaming": "GAMING",
 }
 QUOTAS = {"politics": 3, "local": 3, "technology": 2, "gaming": 1, "obituaries": 1, "entertainment": 2}
 SAMPLE_LIMITS = {"politics": 28, "local": 35, "obituaries": 16, "technology": 23, "gaming": 18, "entertainment": 28}
@@ -86,6 +86,92 @@ def image_from_entry(entry):
     return safe_url(picture.get("href") or picture.get("url") or "")
 
 
+
+def categorize_story(story, suggested=None):
+    """Classify by what a story is actually about, not merely its RSS feed.
+
+    A model may suggest a section, but high-confidence subject clues take
+    precedence. In particular, obituaries must explicitly report a death,
+    and gaming must actually concern video games. Return None for off-topic
+    articles in broad feeds instead of silently placing them somewhere.
+    """
+    title = clean(story.get("title", "")).lower()
+    excerpt = clean(story.get("excerpt", "")).lower()
+    text = title + " " + excerpt
+    original = story.get("category")
+    proposed = suggested if suggested in CATEGORIES else original
+
+    death = re.search(
+        r"\b(?:dies|died|has died|have died|passed away|passes away|"
+        r"dead at (?:age )?\d{2,3}|obituary|death announced)\b", title
+    )
+    # A general mention of a death in the excerpt is NOT a celebrity obituary.
+    if death and not re.search(
+        r"\b(?:death toll|death penalty|death sentence|death threat)\b", title
+    ):
+        return "obituaries"
+
+    # Coverage of Los Angeles-area government, public safety, neighborhoods,
+    # entertainment venues, etc. belongs under local news even when a
+    # national entertainment RSS feed happened to carry the story.
+    region = re.search(
+        r"\b(?:los angeles|l\.a\.|pasadena|south pasadena|alhambra|arcadia|"
+        r"malibu|glendale|burbank|santa monica|west hollywood|"
+        r"beverly hills|san gabriel valley|monrovia|culver city|"
+        r"los feliz|altadena|la county|l\.a\. county)\b", title
+    )
+    if region and (
+        original == "local" or
+        re.search(r"\b(?:fire|wildfire|police|crime|arrest|city|county|"
+                  r"mayor|election|housing|school|traffic|injur|"
+                  r"storm|protest|community|council|shooting)\b", title)
+    ):
+        return "local"
+
+    game = re.search(
+        r"\b(?:video games?|videogames?|gaming|gameplay|xbox|playstation|"
+        r"nintendo|switch 2|steam|esports?|game studios?|"
+        r"game developers?|dlc|gaming consoles?|"
+        r"final fantasy|fortnite|minecraft|roblox)\b", text
+    )
+    media = re.search(
+        r"\b(?:movies?|films?|film-making|television|tv|series|"
+        r"actor|actress|screenplay|screenwriter|director|casting|"
+        r"box office|streaming|netflix|hbo|disney\+|"
+        r"hollywood|trailer|season \d+|novel|books?|"
+        r"musician|singer|album|music|celebrity|entertainment)\b", title
+    )
+    if game and not re.search(r"\b(?:hunger games|game of thrones)\b", title):
+        return "gaming"
+
+    if media:
+        return "entertainment"
+
+    if re.search(
+        r"\b(?:president|white house|congress|senate|parliament|"
+        r"prime minister|doj|department of justice|federal|"
+        r"election|ballots?|legislation|supreme court|"
+        r"governor|minister|political party|referendum|"
+        r"government|democrat|republican)\b", title
+    ):
+        return "politics"
+
+    if re.search(
+        r"\b(?:artificial intelligence|a\.i\.|ai |"
+        r"apple|google|microsoft|meta|openai|software|"
+        r"app store|smartphone|cybersecurity|hardware|"
+        r"chips?|computers?|tech|robotics|processor|"
+        r"smart home)\b", title
+    ):
+        return "technology"
+
+    # No trustworthy evidence for either high-risk classification:
+    # a broad feed is not proof of death or a game announcement.
+    if proposed in ("obituaries", "gaming", "entertainment"):
+        return None
+    return proposed if proposed in CATEGORIES else None
+
+
 def collect(config):
     articles = []
     observed = set()
@@ -127,7 +213,7 @@ def collect(config):
                         entry.get("summary", "") or
                         (entry.get("content") or [{}])[0].get("value", "")
                     )[:1300]
-                    articles.append({
+                    record = {
                         "id": article_id,
                         "category": category,
                         "title": title[:250],
@@ -137,7 +223,12 @@ def collect(config):
                         "published": iso_date,
                         "excerpt": excerpt,
                         "image": image_from_entry(entry),
-                    })
+                    }
+                    correct_category = categorize_story(record)
+                    if correct_category is None:
+                        continue
+                    record["category"] = correct_category
+                    articles.append(record)
             except (requests.RequestException, ValueError, TypeError) as exc:
                 LOG.warning("Skipping unavailable feed %s: %s", url, exc)
     articles.sort(key=lambda story: story["published"], reverse=True)
@@ -235,7 +326,11 @@ def curate(items, history, config):
         "Never copy long phrases and never claim a claim is independently verified from one source. "
         "Output ONLY JSON object with 'stories' array. Each item must contain "
         "'primary_id' (exact article id), 'related_ids' (array of other exact matching ids), "
-        "and 'summary' (plain-text one or two paragraphs). "
+        "and 'summary' (plain-text one or two paragraphs), plus 'category' (one of "
+        "'politics', 'local', 'entertainment', 'technology', 'gaming', 'obituaries'). "
+        "Obituaries must explicitly announce a notable person's death; arts or legal news "
+        "about a living actor is entertainment, not an obituary. Book releases are NOT gaming "
+        "news, and Los Angeles-area fire stories are local, not entertainment. "
         "Be neutral and informative. Do not invent extra article IDs. "
         "\nPrevious coverage:\n" + json.dumps(prior, ensure_ascii=False) +
         "\nToday's RSS items:\n" + json.dumps(model_input, ensure_ascii=False)
@@ -255,7 +350,11 @@ def curate(items, history, config):
         primary_id = item.get("primary_id")
         if primary_id not in available or primary_id in used_ids:
             continue
-        primary = available[primary_id]
+        primary = dict(available[primary_id])
+        corrected = categorize_story(primary, item.get("category"))
+        if corrected is None:
+            continue
+        primary["category"] = corrected
         summary = (item.get("summary") or "").strip()
         if not isinstance(summary, str) or len(clean(summary)) < 35:
             continue
@@ -280,7 +379,7 @@ def curate(items, history, config):
     chosen_ids = set()
     chosen = []
     max_articles = max(1, min(int(config.get("max_articles", 12)), 12))
-    for category in ("local", "politics", "technology", "entertainment", "gaming", "obituaries"):
+    for category in ("politics", "local", "entertainment", "technology", "gaming", "obituaries"):
         cap = min(QUOTAS[category], max_articles - len(chosen))
         for story in [g for g in groups if g["category"] == category][:cap]:
             chosen.append(story)
@@ -389,7 +488,7 @@ def article_markup(story, feature=False, include_image=False):
         )
     return (
         '<tr><td style="padding:16px 0 22px;border-bottom:1px solid #d4d0c7">'
-        + ('<div style="font:700 10px Arial,sans-serif;letter-spacing:2px;color:#775b40;margin-bottom:8px">TOP STORY</div>' if feature else '')
+        + ('<div style="font:700 10px Arial,sans-serif;letter-spacing:2px;color:#775b40;margin-bottom:8px">TOP STORY · ' + html.escape(LABELS.get(story["category"], "NEWS")) + '</div>' if feature else '')
         + '<h2 style="font:bold ' + str(title_size) +
         'px/1.16 Georgia,Times New Roman,serif;letter-spacing:-.6px;margin:0 0 8px">'
         + headline + '</h2>'
@@ -456,8 +555,15 @@ def cinema_markup(movies, status, week):
             '<tr><td style="font:14px/1.6 Georgia,serif;padding:14px 0">'
             + html.escape(notice) + '</td></tr>'
         )
+    preferred = " &nbsp; · &nbsp; ".join(
+        link(theater["url"], theater["name"],
+             "font:bold 12px Arial,sans-serif;color:#395d73")
+        for theater in PREFERRED_REGAL_THEATERS
+    )
     pieces.append(
         '<tr><td style="padding:15px 0 16px;font:12px/1.7 Arial,sans-serif;color:#555">'
+        '<div style="font:bold 12px Arial,sans-serif;margin-bottom:6px">'
+        'CHECK YOUR REGAL THEATERS</div>' + preferred + '<br><br>'
         + link(REGAL_MOVIES_URL, "CHECK REGAL MOVIES & SHOWTIMES →",
                "font:bold 12px Arial,sans-serif;color:#395d73")
         + '<br>These are U.S. theatrical release dates, not confirmed showtimes or '
@@ -509,7 +615,10 @@ def render(stories, config, edition_date, masthead_src, movies=None, movie_statu
         content = article_markup(featured, feature=True, include_image=bool(featured.get("image")))
         image_count = int(bool(featured.get("image")))
         for category in CATEGORIES:
-            group = [story for story in stories[1:] if story["category"] == category]
+            group = sorted(
+                (story for story in stories[1:] if story["category"] == category),
+                key=lambda article: article["published"], reverse=True
+            )
             if not group:
                 continue
             content += section_header(category)
