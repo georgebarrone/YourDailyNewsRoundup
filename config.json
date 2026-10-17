@@ -4,7 +4,7 @@
   "recipient": "barronejorge@gmail.com",
   "timezone": "America/Los_Angeles",
   "max_articles": 12,
-  "gemini_model": "gemini-2.5-flash",
+  "gemini_model": "gemini-3.8-flash",
   "feeds": {
     "politics": [
       "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml",
@@ -12,7 +12,6 @@
     ],
     "local": [
       "https://www.pasadenanow.com/main/feed",
-      "https://laist.com/feeds/news",
       "https://www.latimes.com/local/rss2.0.xml"
     ],
     "obituaries": [
