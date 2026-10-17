@@ -19,8 +19,7 @@
     ],
     "obituaries": [
       "https://www.theguardian.com/tone/obituaries/rss",
-      "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml",
-      "https://www.hollywoodreporter.com/feed/"
+      "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml"
     ],
     "technology": [
       "https://feeds.arstechnica.com/arstechnica/index",
@@ -30,6 +29,13 @@
     "gaming": [
       "https://www.polygon.com/rss/index.xml",
       "https://www.ign.com/articles?format=rss"
+    ],
+    "entertainment": [
+      "https://variety.com/v/film/feed/",
+      "https://variety.com/v/tv/feed/",
+      "https://deadline.com/feed/atom/",
+      "https://www.hollywoodreporter.com/feed/"
     ]
-  }
+  },
+  "max_weekly_movies": 5
 }
