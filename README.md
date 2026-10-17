@@ -8,7 +8,7 @@ Focus: factual and politically neutral national politics, local Los Angeles / Pa
 
 ## Setup: do this before the first email
 
-1. Create a Gemini API key at https://aistudio.google.com/apikey . The model in config.json defaults to `gemini-2.5-flash`; verify it is available in your free tier.
+1. Create a Gemini API key at https://aistudio.google.com/apikey . The model in config.json defaults to `gemini-3.8-flash`; verify it is available in your free tier.
 2. Sign in to the dedicated sender Gmail. Enable 2-Step Verification and generate a **Google App Password** at https://myaccount.google.com/apppasswords . This option may be unavailable for some accounts.
 3. In the GitHub repository go to **Settings → Secrets and variables → Actions → New repository secret**. Add `GEMINI_API_KEY` and `GMAIL_APP_PASSWORD` (the sender's app password, **not** its normal password). Never commit or share the secrets.
 4. Go to **Actions → Daily News Roundup → Run workflow**. Keep **preview_only** checked. Download the **newsletter-preview** workflow artifact and open `preview.html`.
@@ -24,7 +24,7 @@ Focus: factual and politically neutral national politics, local Los Angeles / Pa
 - Stores identifiers of sent stories in `history.json` so the same exact links are not resent.
 - Skips sending when no qualifying stories appear.
 
-Because many RSS feeds contain only excerpts, **this initial version uses one-paragraph summaries** rather than inventing two-paragraph article summaries. It does not reproduce copyrighted articles. Feed endpoints are starting points and should be checked and replaced if publishers change them.
+Because many RSS feeds contain only excerpts, **this initial version uses one-paragraph summaries** rather than inventing two-paragraph article summaries. It does not reproduce copyrighted articles. Broken feed endpoints should be removed or replaced. Feed endpoints are starting points and should be checked and replaced if publishers change them.
 
 ## Local preview
 
