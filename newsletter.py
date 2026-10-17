@@ -682,11 +682,19 @@ def save_history(path, history, stories):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--preview", action="store_true", help="Create preview.html without sending email")
+    parser.add_argument("--scheduled", action="store_true", help="Skip if this daily edition already sent")
     args = parser.parse_args()
     config = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
     history_file = ROOT / "history.json"
     history = load_history(history_file)
     local_now = datetime.now(ZoneInfo(config["timezone"]))
+    delivery_file = ROOT / "delivery_state.json"
+    local_date = local_now.date().isoformat()
+    if args.scheduled and delivery_file.exists():
+        previous = json.loads(delivery_file.read_text(encoding="utf-8"))
+        if previous.get("last_scheduled_delivery") == local_date:
+            LOG.info("Today's scheduled edition already delivered (%s); skipping duplicate send", local_date)
+            return
     movies, movie_status, movie_week = get_weekly_movies(config, local_now.date())
     candidates = [item for item in collect(config) if not recently_sent(item, history)]
     stories = curate(candidates, history, config) if candidates else []
@@ -707,6 +715,11 @@ def main():
     page = render(stories, config, date, "cid:roundup-masthead",
                   movies, movie_status, movie_week)
     send(page, masthead, config, date)
+    if args.scheduled:
+        delivery_file.write_text(
+            json.dumps({"last_scheduled_delivery": local_date}, indent=2) + "\n",
+            encoding="utf-8"
+        )
     if stories:
         save_history(history_file, history, stories)
     LOG.info("Emailed %d stories and %d movie openings", len(stories), len(movies))
