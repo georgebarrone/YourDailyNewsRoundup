@@ -7,7 +7,7 @@ on:
         type: boolean
         default: true
   schedule:
-    - cron: '0 9 * * *'
+    - cron: '0,17,37 9 * * *'
       timezone: 'America/Los_Angeles'
 permissions:
   contents: write
@@ -35,6 +35,8 @@ jobs:
         run: |
           if [ "$PREVIEW_ONLY" = "true" ]; then
             python newsletter.py --preview
+          elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            python newsletter.py --scheduled
           else
             python newsletter.py
           fi
@@ -45,13 +47,13 @@ jobs:
           name: newsletter-preview
           path: preview.html
           retention-days: 7
-      - name: Save sent article history
+      - name: Save delivery state and sent article history
         if: inputs.preview_only != true
         run: |
-          if [ -f history.json ]; then
+          if [ -f history.json ] || [ -f delivery_state.json ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add history.json
+            git add history.json delivery_state.json
             if ! git diff --cached --quiet; then
               git commit -m "Update emailed stories"
               git push
