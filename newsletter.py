@@ -379,7 +379,7 @@ def curate(items, history, config):
     chosen_ids = set()
     chosen = []
     max_articles = max(1, min(int(config.get("max_articles", 12)), 12))
-    for category in ("politics", "local", "entertainment", "technology", "gaming", "obituaries"):
+    for category in ("local", "politics", "entertainment", "technology", "gaming", "obituaries"):
         cap = min(QUOTAS[category], max_articles - len(chosen))
         for story in [g for g in groups if g["category"] == category][:cap]:
             chosen.append(story)
