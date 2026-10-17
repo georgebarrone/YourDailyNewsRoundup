@@ -7,9 +7,9 @@ on:
         type: boolean
         default: true
   schedule:
-    # Temporary test window; revert to 9 AM once scheduled delivery is confirmed.
-    - cron: '10,20,30,40 10 * * *'
-      timezone: 'America/Los_Angeles'
+    # Temporary Oct 17 diagnostic: 17:20/17:30/17:40 UTC = 10:20/10:30/10:40 PDT.
+    # Restore a timezone-aware 9 AM Pacific schedule after the test.
+    - cron: '20,30,40 17 * * *'
 permissions:
   contents: write
 concurrency:
