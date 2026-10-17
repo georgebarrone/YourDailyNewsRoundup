@@ -111,15 +111,19 @@ def render(stories, config, edition_date):
 
 
 def send(page, config, date):
+    sender = os.environ.get("NEWSLETTER_SENDER_EMAIL", "").strip()
+    recipient = os.environ.get("NEWSLETTER_RECIPIENT_EMAIL", "").strip()
+    if not sender or not recipient:
+        raise RuntimeError("Missing NEWSLETTER_SENDER_EMAIL or NEWSLETTER_RECIPIENT_EMAIL GitHub Actions secret")
     password = os.environ["GMAIL_APP_PASSWORD"].replace(" ", "")
     message = EmailMessage()
-    message["From"] = config["sender"]
-    message["To"] = config["recipient"]
+    message["From"] = sender
+    message["To"] = recipient
     message["Subject"] = f'{config["newsletter_title"]} — {date}'
     message.set_content("This newsletter is formatted as HTML. Please view it in an HTML-compatible mail client.")
     message.add_alternative(page, subtype="html")
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context(), timeout=30) as smtp:
-        smtp.login(config["sender"], password)
+        smtp.login(sender, password)
         smtp.send_message(message)
 
 
