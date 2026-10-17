@@ -1,7 +1,5 @@
 {
   "newsletter_title": "Your Daily News Roundup",
-  "sender": "yourdailynewsroundup@gmail.com",
-  "recipient": "barronejorge@gmail.com",
   "timezone": "America/Los_Angeles",
   "max_articles": 12,
   "gemini_model": "gemini-3.8-flash",
