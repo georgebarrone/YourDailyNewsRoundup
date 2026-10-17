@@ -23,17 +23,20 @@ import requests
 from google import genai
 from PIL import Image, ImageDraw, ImageFont
 
+from movie_releases import get_weekly_movies, REGAL_MOVIES_URL, TMDB_LOGO
+
 ROOT = Path(__file__).resolve().parent
-CATEGORIES = ["politics", "local", "obituaries", "technology", "gaming"]
+CATEGORIES = ["politics", "local", "obituaries", "technology", "gaming", "entertainment"]
 LABELS = {
     "politics": "POLITICS & WORLD",
     "local": "LOS ANGELES & THE SAN GABRIEL VALLEY",
     "obituaries": "IN MEMORIAM",
     "technology": "TECHNOLOGY",
     "gaming": "GAMING",
+    "entertainment": "MOVIES, TELEVISION & ENTERTAINMENT",
 }
-QUOTAS = {"politics": 3, "local": 3, "technology": 2, "gaming": 1, "obituaries": 1}
-SAMPLE_LIMITS = {"politics": 28, "local": 35, "obituaries": 16, "technology": 23, "gaming": 18}
+QUOTAS = {"politics": 3, "local": 3, "technology": 2, "gaming": 1, "obituaries": 1, "entertainment": 2}
+SAMPLE_LIMITS = {"politics": 28, "local": 35, "obituaries": 16, "technology": 23, "gaming": 18, "entertainment": 28}
 STOPWORDS = {
     "the", "a", "an", "and", "of", "in", "on", "to", "for", "with", "from",
     "as", "at", "after", "new", "over", "about", "amid", "says", "said",
@@ -214,6 +217,9 @@ def curate(items, history, config):
         "Pasadena, South Pasadena, Alhambra and the San Gabriel Valley; do not treat unrelated "
         "California news as local unless regionally relevant. Prefer major, factual US/global political "
         "developments, confirmed notable deaths, noteworthy tech and worthwhile gaming announcements. "
+        "Also include major film, TV and entertainment stories: noteworthy movie or TV announcements, "
+        "series renewals or cancellations, major casting, trailers, festival and box-office news. "
+        "Select major developments only, not gossip, reviews, rumor, or promotional filler. "
         "Do not include obituaries or death announcements unless the provided evidence clearly confirms "
         "the person's death from a reputable publisher. Reject reviews, editorials, promotional pieces, "
         "speculation, clickbait, and low-information stories. "
@@ -274,7 +280,7 @@ def curate(items, history, config):
     chosen_ids = set()
     chosen = []
     max_articles = max(1, min(int(config.get("max_articles", 12)), 12))
-    for category in ("local", "politics", "technology", "gaming", "obituaries"):
+    for category in ("local", "politics", "technology", "entertainment", "gaming", "obituaries"):
         cap = min(QUOTAS[category], max_articles - len(chosen))
         for story in [g for g in groups if g["category"] == category][:cap]:
             chosen.append(story)
@@ -398,7 +404,82 @@ def article_markup(story, feature=False, include_image=False):
     )
 
 
-def render(stories, config, edition_date, masthead_src):
+
+def cinema_markup(movies, status, week):
+    """A separate cinema calendar, independent of the 12 curated news articles."""
+    first, last = week
+    heading = (
+        '<tr><td style="padding:30px 0 10px;border-bottom:2px solid #191919;'
+        'font:700 12px Arial,sans-serif;letter-spacing:2px">NEW AT THE MOVIES THIS WEEK</td></tr>'
+    )
+    window = (first.strftime("%B %d") + " – " + last.strftime("%B %d, %Y"))
+    pieces = [
+        heading,
+        '<tr><td style="padding:12px 0 5px;font:13px/1.6 Georgia,serif;color:#49443d">'
+        + html.escape(window)
+        + ' · U.S. theatrical openings from Thursday to Wednesday. Friday openings are included.'
+        + '</td></tr>',
+    ]
+    for movie in movies:
+        title = html.escape(movie["title"])
+        opening = html.escape(movie["date"].strftime("%a, %b %d"))
+        classification = html.escape(movie["type"])
+        movie_url = html.escape(movie["url"], quote=True)
+        artwork = ""
+        if movie["poster"]:
+            artwork = (
+                '<td style="width:90px;padding:12px 15px 12px 0;vertical-align:top">'
+                '<a href="' + movie_url + '">'
+                '<img src="' + html.escape(movie["poster"], quote=True)
+                + '" alt="Poster for ' + html.escape(movie["title"], quote=True)
+                + '" width="90" style="display:block;width:90px;max-width:90px;'
+                'height:auto;border:0"></a></td>'
+            )
+        pieces.append(
+            '<tr><td style="padding:3px 0;border-bottom:1px solid #ddd8ce">'
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
+            '<tr>' + artwork
+            + '<td style="padding:12px 0;vertical-align:top">'
+            '<div style="font:bold 21px/1.25 Georgia,serif">'
+            + link(movie["url"], movie["title"], "color:#191919;text-decoration:none")
+            + '</div><div style="font:12px/1.8 Arial,sans-serif;color:#615a51">'
+            + opening + ' · ' + classification
+            + '</div></td></tr></table></td></tr>'
+        )
+    if not movies:
+        notice = (
+            "Release listings are not configured yet. See Regal's current films and showtimes."
+            if status == "unconfigured" else
+            "No verified U.S. theatrical openings available from this week's data."
+        )
+        pieces.append(
+            '<tr><td style="font:14px/1.6 Georgia,serif;padding:14px 0">'
+            + html.escape(notice) + '</td></tr>'
+        )
+    pieces.append(
+        '<tr><td style="padding:15px 0 16px;font:12px/1.7 Arial,sans-serif;color:#555">'
+        + link(REGAL_MOVIES_URL, "CHECK REGAL MOVIES & SHOWTIMES →",
+               "font:bold 12px Arial,sans-serif;color:#395d73")
+        + '<br>These are U.S. theatrical release dates, not confirmed showtimes or '
+        'availability at a particular Regal theater. Verify local listings before visiting.'
+        + '</td></tr>'
+    )
+    if movies:
+        pieces.append(
+            '<tr><td style="padding:8px 0 12px;font:10px/1.5 Arial,sans-serif;color:#68635a">'
+            + link("https://www.themoviedb.org", "TMDB",
+                   "color:#395d73;font-weight:bold;text-decoration:underline")
+            + ' · <a href="https://www.themoviedb.org">'
+            '<img alt="TMDB official logo" width="72" src="'
+            + html.escape(TMDB_LOGO, quote=True)
+            + '" style="width:72px;height:auto;vertical-align:middle;border:0"></a><br>'
+            'This product uses the TMDB API but is not endorsed or certified by TMDB.'
+            '</td></tr>'
+        )
+    return "".join(pieces)
+
+
+def render(stories, config, edition_date, masthead_src, movies=None, movie_status=None, movie_week=None):
     """Inline-style table layout stays legible in Gmail and on narrow phones."""
     masthead = ('<img src="' + html.escape(masthead_src, quote=True) + '" '
                 'alt="Your Daily News Roundup" width="620" '
@@ -436,6 +517,8 @@ def render(stories, config, edition_date, masthead_src):
                 show_image = bool(story.get("image")) and image_count < 5
                 content += article_markup(story, include_image=show_image)
                 image_count += int(show_image)
+    if movie_week:
+        content += cinema_markup(movies or [], movie_status, movie_week)
     footer = (
         '<tr><td style="border-top:3px double #191919;padding-top:22px;'
         'text-align:center;font:11px/1.6 Arial,sans-serif;color:#666">'
@@ -494,27 +577,30 @@ def main():
     config = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
     history_file = ROOT / "history.json"
     history = load_history(history_file)
+    local_now = datetime.now(ZoneInfo(config["timezone"]))
+    movies, movie_status, movie_week = get_weekly_movies(config, local_now.date())
     candidates = [item for item in collect(config) if not recently_sent(item, history)]
-    if not candidates:
-        LOG.info("No new RSS stories; no email sent")
+    stories = curate(candidates, history, config) if candidates else []
+    if not stories and not movies:
+        LOG.info("No qualifying news or theatrical releases; no email sent")
         return
-    stories = curate(candidates, history, config)
-    if not stories:
-        LOG.info("No qualifying events; no email sent")
-        return
-    date = datetime.now(ZoneInfo(config["timezone"])).strftime("%A, %B %d, %Y")
+    date = local_now.strftime("%A, %B %d, %Y")
     masthead = masthead_png()
     if args.preview:
         inline = "data:image/png;base64," + base64.b64encode(masthead).decode("ascii")
         (ROOT / "preview.html").write_text(
-            render(stories, config, date, inline), encoding="utf-8"
+            render(stories, config, date, inline, movies, movie_status, movie_week),
+            encoding="utf-8"
         )
-        LOG.info("Created HTML preview with %d stories", len(stories))
+        LOG.info("Created HTML preview with %d stories and %d movie openings",
+                 len(stories), len(movies))
         return
-    page = render(stories, config, date, "cid:roundup-masthead")
+    page = render(stories, config, date, "cid:roundup-masthead",
+                  movies, movie_status, movie_week)
     send(page, masthead, config, date)
-    save_history(history_file, history, stories)
-    LOG.info("Emailed %d stories and updated history", len(stories))
+    if stories:
+        save_history(history_file, history, stories)
+    LOG.info("Emailed %d stories and %d movie openings", len(stories), len(movies))
 
 
 if __name__ == "__main__":
