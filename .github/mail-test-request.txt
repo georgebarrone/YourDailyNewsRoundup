@@ -1,2 +1,0 @@
-Live delivery test requested by repository owner.
-This commit triggers exactly one push-path-gated workflow run.
