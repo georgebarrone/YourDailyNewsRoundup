@@ -7,7 +7,8 @@ on:
         type: boolean
         default: true
   schedule:
-    - cron: '0 16,17 * * *'
+    - cron: '0 9 * * *'
+      timezone: 'America/Los_Angeles'
 permissions:
   contents: write
 concurrency:
@@ -23,18 +24,7 @@ jobs:
           python-version: '3.11'
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Check Los Angeles local time
-        id: clock
-        env:
-          EVENT: ${{ github.event_name }}
-        run: |
-          if [ "$EVENT" = "workflow_dispatch" ] || [ "$(TZ=America/Los_Angeles date +%H)" = "09" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
       - name: Generate and deliver
-        if: steps.clock.outputs.run == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
@@ -49,14 +39,14 @@ jobs:
             python newsletter.py
           fi
       - name: Attach preview
-        if: steps.clock.outputs.run == 'true' && inputs.preview_only == true
+        if: inputs.preview_only == true
         uses: actions/upload-artifact@v4
         with:
           name: newsletter-preview
           path: preview.html
           retention-days: 7
       - name: Save sent article history
-        if: steps.clock.outputs.run == 'true' && inputs.preview_only != true
+        if: inputs.preview_only != true
         run: |
           if [ -f history.json ]; then
             git config user.name "github-actions[bot]"
