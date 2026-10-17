@@ -38,6 +38,8 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          NEWSLETTER_SENDER_EMAIL: ${{ secrets.NEWSLETTER_SENDER_EMAIL }}
+          NEWSLETTER_RECIPIENT_EMAIL: ${{ secrets.NEWSLETTER_RECIPIENT_EMAIL }}
           PREVIEW_ONLY: ${{ inputs.preview_only }}
         run: |
           if [ "$PREVIEW_ONLY" = "true" ]; then
