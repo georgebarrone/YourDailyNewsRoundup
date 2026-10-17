@@ -1,71 +1,79 @@
 # Your Daily News Roundup 📰
 
-A custom-branded newspaper-style **daily HTML newsletter** powered by Python, RSS and Google Gemini. Editorial interests are factual politics, Los Angeles / Pasadena / South Pasadena / Alhambra, confirmed notable deaths, technology and gaming. **Up to 12 stories; no filler.**
+An independent, newspaper-style daily HTML email, powered by Python, publisher RSS feeds, Gemini, and GitHub Actions. It brings together up to twelve relevant news articles about factual politics, Los Angeles news, technology, gaming, confirmed notable deaths, movies, television, and entertainment, plus a separate weekly theatrical release guide.
 
-**Schedule:** 9 AM America/Los_Angeles every day (GitHub Actions operates on a best-effort schedule).
+**Delivery:** Daily at 9 AM Pacific (automated, best effort).
 
-## What's new
+## What the newsletter includes
 
-- A unique **blackletter-inspired masthead**, generated from open-licensed UnifrakturCook, rather than using any newspaper's actual logo.
-- Featured front-page headline, thick rules, classic serif article headlines and columns that reflow on mobile.
-- Relevant article photos where the publisher explicitly supplies a picture in its RSS media fields, with attribution and a link to its original article. A blocked/absent image is simply omitted.
-- Expanded local feeds from Pasadena Now, LAist, the South Pasadenan, Pasadena Star-News, San Gabriel Valley Tribune and LA Times. A publisher feed may change or reject connections; failure of a single feed doesn't abort the job.
-- Soft category targets: 3 politics, 3 local, 2 technology, 1 gaming, 1 notable death; leftover slots for the strongest news of the day. The newsletter never manufactures filler to reach 12 stories.
-- Event-level grouping across independent reporting, with links to other coverage for applicable stories. This helps cross-check political claims **when multiple independent sources are actually present**, but is not a fact-checking guarantee.
-- Recent-headline matching to reduce repeating the same event across sources and days.
-- One short paragraph per story, optionally two when RSS material supports it. This is original paraphrasing rather than reproducing copyrighted articles.
+- Custom blackletter-inspired masthead, featured headlines, serif typography, newspaper dividers, and mobile-friendly HTML.
+- Up to 12 original news summaries with publisher links, balancing politics, Los Angeles-area news, major entertainment announcements, technology, gaming, and confirmed notable deaths.
+- Publisher-provided article images when available, with source attribution and links to original reporting. Mail clients may block remote images.
+- News without filler, duplication of same-event reporting, or unsupported claims of independent verification.
+- **New at the Movies This Week:** a separate list of up to five U.S. theatrical movie openings (not counted toward the 12 news articles), with dates and film posters when available.
 
-## Secure installation
+## Weekly movie releases and Regal
 
-This is a **public repo**: never commit API keys, app passwords, personal email addresses or local environment files. Set these **four repository secrets** under GitHub Settings → Secrets and variables → Actions:
+The movie guide follows a **Thursday-through-Wednesday** release week, including films with Friday theatrical dates. U.S. theatrical release dates come from the **TMDB (The Movie Database)** API, prioritizing wide theatrical openings and occasionally including limited theatrical runs.
 
-| Secret name | Meaning |
+The section also links to [Regal's official movie listings](https://www.regmovies.com/movies), where you can select a theater and verify showtimes or book tickets.
+
+**Important:** A U.S. theatrical release date does not confirm that any particular Regal theater has the film. Exact Regal availability depends on the location. The digest is a Regal-oriented release guide, **not** a real-time Regal showtime feed.
+
+Movie listings require an additional optional secret named **TMDB_API_KEY**. Without that key the rest of the email still works; the movie section can provide a Regal listings link rather than inventing releases.
+
+TMDB's API is available for eligible noncommercial uses subject to its terms and attribution requirements. You can obtain a key in [TMDB API settings](https://www.themoviedb.org/settings/api).
+
+## Secure configuration
+
+This is a **public repository**. Never commit email addresses, secrets, keys, app passwords or local environment files.
+
+Add these GitHub Actions Secrets under **Settings → Secrets and variables → Actions**:
+
+| Secret name | Purpose |
 | --- | --- |
-| GEMINI_API_KEY | Gemini key from https://aistudio.google.com/apikey |
-| GMAIL_APP_PASSWORD | Dedicated Gmail sender account's App Password, not its ordinary login password |
-| NEWSLETTER_SENDER_EMAIL | Newsletter sender address |
-| NEWSLETTER_RECIPIENT_EMAIL | Newsletter recipient address |
+| GEMINI_API_KEY | Summarizes publisher RSS excerpts |
+| GMAIL_APP_PASSWORD | Gmail App Password for the newsletter sender (not the Gmail login password) |
+| NEWSLETTER_SENDER_EMAIL | Newsletter sending address |
+| NEWSLETTER_RECIPIENT_EMAIL | Receiving inbox |
+| TMDB_API_KEY | **Optional:** enables verified U.S. theatrical movie release dates |
 
-To create an App Password, enable Google two-step verification and use https://myaccount.google.com/apppasswords . Values are read at runtime; neither email address is kept in a committed config file.
+Gmail App Passwords require an account with 2-Step Verification, using https://myaccount.google.com/apppasswords .
 
-## Preview or send manually
+Email addresses and credentials are read from environment variables at runtime, not from the repository. Older public Git commits may still contain previously removed metadata; editing this README does not erase Git history.
 
-1. Go to **Actions → Daily News Roundup → Run workflow**.
-2. Leave **preview_only** checked. When the run succeeds, download the **newsletter-preview** artifact and open the included HTML file.
-3. For a one-time live delivery test, run the workflow again with **preview_only** unchecked. The scheduled workflow also sends automatically.
+## Preview and send
 
-To generate a preview locally, install packages from requirements.txt, export GEMINI_API_KEY and run the script with the --preview argument:
+1. Open **Actions → Daily News Roundup → Run workflow**.
+2. Leave **preview_only** checked to generate an HTML preview artifact without emailing it.
+3. Open the downloaded HTML preview in a browser.
+4. For a delivery test, start a new workflow run with **preview_only** unchecked.
+
+Once configured, the existing schedule attempts delivery every day at 9 AM Pacific. GitHub Actions scheduled execution is best effort.
+
+Local preview:
 
     python -m pip install -r requirements.txt
     python newsletter.py --preview
 
-Open preview.html locally. A local delivery additionally requires the three email-related environment variables.
+Set GEMINI_API_KEY locally; optionally set TMDB_API_KEY to populate the theatrical release section. Do not commit local credentials.
 
-## How it works
+## Files
 
-1. Collects publisher RSS items with timestamps from approximately the last 30 hours.
-2. Builds a balanced sample of articles from all configured categories.
-3. Uses Gemini to rank only useful stories, merge same-event coverage, cautiously summarize the supplied reporting and avoid already-covered headlines.
-4. Applies soft category allocation targets and a conservative duplicate check.
-5. Generates a unique masthead PNG using the open-licensed [UnifrakturCook](https://github.com/google/fonts/tree/main/ofl/unifrakturcook) font. The outgoing mail embeds this masthead as a CID image. No font file is committed or shared.
-6. Builds HTML in old-fashioned newspaper styling, including publisher RSS images where available.
-7. Sends via Gmail SMTP and saves URL hashes and public news headlines in history.json only after a successful send.
+- newsletter.py — publisher feeds, Gemini news curation, formatting, email delivery.
+- movie_releases.py — optional TMDB movie listings with a Thursday-to-Wednesday opening window.
+- config.json — public RSS sources, topic quotas, and non-secret settings.
+- history.json — sent article IDs and public headlines.
+- .github/workflows/daily.yml — scheduled delivery and manual previews.
+- .github/workflows/check.yml — offline automated tests.
+- tests/ — unit tests without real network, Gemini, or Gmail activity.
 
-## Limitations and licensing
+## Limitations and credits
 
-- Automated news summarization can be imperfect. Political reports are compared **where multiple feeds actually cover the same event**. If only one source is available, do not assume independent confirmation.
-- Article photos are remote links provided by the respective publisher RSS feeds, not downloaded or hosted by this project. They may be blocked by mail clients and remain subject to publishers' reuse terms. Do not assume they are licensed for public redistribution.
-- The blackletter typeface is released under the [SIL Open Font License 1.1](https://openfontlicense.org/). It is downloaded at runtime, never committed.
-- RSS snippets do not always contain enough information to give an in-depth account, and the tool deliberately avoids copying full articles or bypassing paywalls.
-- The scheduled workflow has 16:00 and 17:00 UTC triggers and checks whether it is 9 AM local time in Los Angeles. Late GitHub runs can miss this window.
-- **Privacy note:** Previous public Git commits contained email addresses later removed from all current files. Changing current files does NOT remove them from old commit history. A carefully coordinated history rewrite would be required for full historical removal.
-- history.json contains URL hashes and publicly available headlines; no email addresses or credentials are stored there.
-
-## Source files
-
-- newsletter.py — RSS reading, deduplication, Gemini curation, custom design and email delivery.
-- config.json — non-sensitive feed list, section settings and model.
-- history.json — sent article IDs and headlines.
-- requirements.txt — Python dependencies.
-- .github/workflows/daily.yml — delivery schedule and HTML preview.
-- tests/test_newsletter.py — offline tests.
+- Summaries are derived from RSS excerpts, not complete copyrighted articles. Automated summarization may omit context; visit original sources for verification.
+- Political claims are compared across independently published reports only when those sources are available; this is not a professional fact-checking service.
+- Publisher RSS image URLs may expire or be blocked; images are not downloaded or rehosted.
+- The original newspaper masthead is not associated with any existing publisher. It uses the open-licensed [UnifrakturCook](https://github.com/google/fonts/tree/main/ofl/unifrakturcook) typeface and embeds only the resulting graphic.
+- TMDB provides the optional theatrical-release data, movie details and posters. The movie section displays TMDB attribution and the notice: **"This product uses the TMDB API but is not endorsed or certified by TMDB."** See [TMDB attribution](https://www.themoviedb.org/about/logos-attribution) and [API terms](https://www.themoviedb.org/api-terms-of-use).
+- U.S. theatrical listings do not guarantee Regal showtimes. Confirm on [Regal's website](https://www.regmovies.com/movies).
+- GitHub scheduled Actions may be delayed and miss the configured sending window.
