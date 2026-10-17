@@ -108,6 +108,33 @@ class NewsRoundupTests(unittest.TestCase):
         self.assertEqual(articles[1]["category"], "politics")
         self.assertEqual(len(articles[1]["related"]), 1)
 
+    def test_fallback_masthead_is_a_valid_png(self):
+        with patch.object(newsletter.requests, "get", side_effect=newsletter.requests.RequestException("offline")):
+            data = newsletter.masthead_png()
+        self.assertTrue(data.startswith(b"\x89PNG\r\n\x1a\n"))
+
+    def test_email_mime_embeds_masthead_and_keeps_credentials_runtime_only(self):
+        story = make_story("m", "local", "Local public meeting planned")
+        story["summary"] = "Officials published plans for a local public meeting."
+        story["related"] = []
+        page = newsletter.render([story], {"newsletter_title": "Your Daily News Roundup"},
+                                 "October 17, 2026", "cid:roundup-masthead")
+        secrets = {
+            "NEWSLETTER_SENDER_EMAIL": "sender@example.com",
+            "NEWSLETTER_RECIPIENT_EMAIL": "recipient@example.com",
+            "GMAIL_APP_PASSWORD": "synthetic-test-password",
+        }
+        with patch.dict("os.environ", secrets):
+            with patch.object(newsletter.smtplib, "SMTP_SSL") as smtp:
+                newsletter.send(page, b"\x89PNG\r\n\x1a\n", {
+                    "newsletter_title": "Your Daily News Roundup"}, "October 17, 2026")
+                sent = smtp.return_value.__enter__.return_value.send_message.call_args.args[0]
+                self.assertEqual(sent["From"], "sender@example.com")
+                self.assertEqual(sent["To"], "recipient@example.com")
+                self.assertIn("roundup-masthead", sent.as_string())
+                smtp.return_value.__enter__.return_value.login.assert_called_once_with(
+                    "sender@example.com", "synthetic-test-password")
+
     def test_no_private_email_in_public_configuration(self):
         content = (Path(newsletter.__file__).parent / "config.json").read_text(
             encoding="utf-8")
