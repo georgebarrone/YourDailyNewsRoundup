@@ -183,9 +183,10 @@ class NewsRoundupTests(unittest.TestCase):
             "GAMING",
             "IN MEMORIAM",
         ]
-        for before, after in zip(sections, sections[1:]):
-            self.assertLess(page.index(before, page.index("National political update")),
-                            page.index(after, page.index("National political update")))
+        labels = ["politics", "local", "entertainment", "technology", "gaming", "obituaries"]
+        for before, after in zip(labels, labels[1:]):
+            self.assertLess(page.index(newsletter.section_header(before)),
+                            page.index(newsletter.section_header(after)))
         self.assertLess(page.index("Newest neighborhood headline"),
                         page.index("Older neighborhood headline"))
 
