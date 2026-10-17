@@ -1,14 +1,152 @@
 [
-  "0dfb5b40b57b2ba25527",
-  "1306f05f46c2b70d6dc9",
-  "36a52e4e77c42a6e5a0c",
-  "48605cccbf85844ccf21",
-  "61d81d76320557ce7927",
-  "83edf1f5b083e8f907a6",
-  "b09763494f731c25d0a1",
-  "bcba6f7af2164315f89f",
-  "d56d7345469111cea722",
-  "e7099c6872190a2715fb",
-  "f909687e9deb8aeaac6a",
-  "fbda300348f27f40179f"
+  {
+    "id": "0dfb5b40b57b2ba25527"
+  },
+  {
+    "id": "1306f05f46c2b70d6dc9"
+  },
+  {
+    "id": "36a52e4e77c42a6e5a0c"
+  },
+  {
+    "id": "48605cccbf85844ccf21"
+  },
+  {
+    "id": "61d81d76320557ce7927"
+  },
+  {
+    "id": "83edf1f5b083e8f907a6"
+  },
+  {
+    "id": "b09763494f731c25d0a1"
+  },
+  {
+    "id": "bcba6f7af2164315f89f"
+  },
+  {
+    "id": "d56d7345469111cea722"
+  },
+  {
+    "id": "e7099c6872190a2715fb"
+  },
+  {
+    "id": "f909687e9deb8aeaac6a"
+  },
+  {
+    "id": "fbda300348f27f40179f"
+  },
+  {
+    "id": "900f8288283487c87669",
+    "title": "Arcadia surrogacy mansion mom fled U.S. after previous abuse charge, prosecutors allege",
+    "category": "local",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "212b8b51c51d2748928c",
+    "title": "LA fire survivors set to lose case managers as California and FEMA's standoff drags on",
+    "category": "local",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "d05b0a5490e9084772b4",
+    "title": "County Planners to Hear Altadena Input on Rebuild Rules Saturday, With No Draft Changes Yet",
+    "category": "local",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "88350355fd4ce189420e",
+    "title": "White House press secretary Katie Zacharia leaving the job after Trump casts doubt",
+    "category": "politics",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "024c80ca33de095ff058",
+    "title": "Katie Zacharia is 'transitioning out' as press secretary, White House says",
+    "category": "politics",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "9ac290dfec93f26b8537",
+    "title": "Anthony Scaramucci Reacts To Katie Zacharia’s White House Tenure Being Shorter Than His: “Records Are Made To Be Broken”",
+    "category": "politics",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "ddd0f710846fa2197471",
+    "title": "Trump's decision to waive Russian sanctions outrages Congress, but no quick counter seen",
+    "category": "politics",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "55464d172aa0845d5ded",
+    "title": "DOJ says California officials who process ballots from suspected noncitizens risk prosecution",
+    "category": "politics",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "88b03b9633a4303fd0ec",
+    "title": "Week in Politics: Trump's Russian diesel deal update; why the DOJ is suing California",
+    "category": "politics",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "d3a91d1238d7caeda3a0",
+    "title": "Big assertions, sharp exchanges, little clarity define DOJ election battle with California",
+    "category": "politics",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "0425fe506f25d81d1ed7",
+    "title": "Box Office: ‘Street Fighter’ Scores $13 Million Debut as ‘You Can See Everything’ Opens at No. 2 With $5.5 Million on Friday",
+    "category": "entertainment",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "5715fc20995fe0119238",
+    "title": "‘Street Fighter’ Scoring $31M at Box Office as ‘You Can See Everything’ Rises and ‘Whalefall’ Sinks",
+    "category": "entertainment",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "d6265fb792fe70618f60",
+    "title": "Street Fighter movie is 'made by fans for fans' - but can it KO the critics?",
+    "category": "gaming",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "afed448efc2588beb0de",
+    "title": "‘True Detective’ Season 5: Antonio Banderas Joins Nicolas Cage as Series Set to Film in 2027",
+    "category": "entertainment",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "74f9abc5e9ed34c9987b",
+    "title": "True Detective Season 5 to feature the best starring duo since Matthew McConaughey and Woody Harrelson",
+    "category": "entertainment",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "856e060c0f3ab2f7cb94",
+    "title": "Elon Musk settles lawsuits over $1 million voter giveaway",
+    "category": "technology",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "b78211c201b67f2df6b0",
+    "title": "Here's what we know about the man who allegedly bugged an OpenAI conference room in San Francisco",
+    "category": "technology",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "ec4e73a6f7739c0d8c4d",
+    "title": "Michael Forest Dies: Actor In Roger Corman B-Movies, ‘Star Trek’s Apollo Was 97",
+    "category": "obituaries",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  },
+  {
+    "id": "3f8c2273213ecd2e5666",
+    "title": "Democrats say Trump increased investments in drugmakers that were given Medicare exemptions",
+    "category": "politics",
+    "sent_at": "2026-10-17T16:59:50.410283+00:00"
+  }
 ]
