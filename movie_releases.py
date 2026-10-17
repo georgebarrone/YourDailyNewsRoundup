@@ -17,6 +17,16 @@ TMDB_LOGO = (
     "blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"
 )
 REGAL_MOVIES_URL = "https://www.regmovies.com/movies"
+PREFERRED_REGAL_THEATERS = (
+    {
+        "name": "Regal Alhambra Renaissance",
+        "url": "https://www.regmovies.com/theatres/regal-edwards-alhambra-renaissance-1053",
+    },
+    {
+        "name": "Regal Paseo",
+        "url": "https://www.regmovies.com/theatres/regal-paseo-1485",
+    },
+)
 
 
 def opening_week(day=None):
