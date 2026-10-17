@@ -6,19 +6,26 @@
   "feeds": {
     "politics": [
       "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml",
-      "https://www.pbs.org/newshour/feeds/rss/politics"
+      "https://www.pbs.org/newshour/feeds/rss/politics",
+      "https://feeds.npr.org/1014/rss.xml"
     ],
     "local": [
       "https://www.pasadenanow.com/main/feed",
+      "https://laist.com/rss/latest-news",
+      "https://southpasadenan.com/feed/",
+      "https://www.pasadenastarnews.com/feed/",
+      "https://www.sgvtribune.com/feed/",
       "https://www.latimes.com/local/rss2.0.xml"
     ],
     "obituaries": [
       "https://www.theguardian.com/tone/obituaries/rss",
-      "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml"
+      "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml",
+      "https://www.hollywoodreporter.com/feed/"
     ],
     "technology": [
       "https://feeds.arstechnica.com/arstechnica/index",
-      "https://www.theverge.com/rss/index.xml"
+      "https://www.theverge.com/rss/index.xml",
+      "https://techcrunch.com/feed/"
     ],
     "gaming": [
       "https://www.polygon.com/rss/index.xml",
