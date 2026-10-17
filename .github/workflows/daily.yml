@@ -1,0 +1,66 @@
+name: Daily News Roundup
+on:
+  workflow_dispatch:
+    inputs:
+      preview_only:
+        description: Generate HTML preview without emailing
+        type: boolean
+        default: true
+  schedule:
+    - cron: '0 16,17 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: daily-news-roundup
+  cancel-in-progress: false
+jobs:
+  roundup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Check Los Angeles local time
+        id: clock
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ] || [ "$(TZ=America/Los_Angeles date +%H)" = "09" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Generate and deliver
+        if: steps.clock.outputs.run == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          PREVIEW_ONLY: ${{ inputs.preview_only }}
+        run: |
+          if [ "$PREVIEW_ONLY" = "true" ]; then
+            python newsletter.py --preview
+          else
+            python newsletter.py
+          fi
+      - name: Attach preview
+        if: steps.clock.outputs.run == 'true' && inputs.preview_only == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: newsletter-preview
+          path: preview.html
+          retention-days: 7
+      - name: Save sent article history
+        if: steps.clock.outputs.run == 'true' && inputs.preview_only != true
+        run: |
+          if [ -f history.json ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add history.json
+            if ! git diff --cached --quiet; then
+              git commit -m "Update emailed stories"
+              git push
+            fi
+          fi
