@@ -190,6 +190,58 @@ class NewsRoundupTests(unittest.TestCase):
         self.assertLess(page.index("Newest neighborhood headline"),
                         page.index("Older neighborhood headline"))
 
+    def test_scheduled_retry_does_not_send_twice_same_day(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)
+            (path / "config.json").write_text(
+                json.dumps({"timezone": "America/Los_Angeles", "newsletter_title": "Test"}),
+                encoding="utf-8"
+            )
+            (path / "history.json").write_text("[]", encoding="utf-8")
+            today = datetime.now(ZoneInfo("America/Los_Angeles")).date().isoformat()
+            (path / "delivery_state.json").write_text(
+                json.dumps({"last_scheduled_delivery": today}), encoding="utf-8"
+            )
+            with patch.object(newsletter, "ROOT", path), \
+                 patch("sys.argv", ["newsletter.py", "--scheduled"]), \
+                 patch.object(newsletter, "get_weekly_movies") as movie_lookup, \
+                 patch.object(newsletter, "collect") as collect, \
+                 patch.object(newsletter, "send") as send:
+                newsletter.main()
+                movie_lookup.assert_not_called()
+                collect.assert_not_called()
+                send.assert_not_called()
+
+    def test_scheduled_delivery_records_date_only_after_success(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)
+            (path / "config.json").write_text(
+                json.dumps({"timezone": "America/Los_Angeles", "newsletter_title": "Test"}),
+                encoding="utf-8"
+            )
+            (path / "history.json").write_text("[]", encoding="utf-8")
+            (path / "delivery_state.json").write_text(
+                json.dumps({"last_scheduled_delivery": None}), encoding="utf-8"
+            )
+            movie = {"title": "Demo opening"}
+            with patch.object(newsletter, "ROOT", path), \
+                 patch("sys.argv", ["newsletter.py", "--scheduled"]), \
+                 patch.object(newsletter, "get_weekly_movies", return_value=(
+                     [movie], "ok", (None, None))), \
+                 patch.object(newsletter, "collect", return_value=[]), \
+                 patch.object(newsletter, "masthead_png", return_value=b"test"), \
+                 patch.object(newsletter, "render", return_value="<html></html>"), \
+                 patch.object(newsletter, "send") as send:
+                newsletter.main()
+                send.assert_called_once()
+                state = json.loads((path / "delivery_state.json").read_text())
+                today = datetime.now(ZoneInfo("America/Los_Angeles")).date().isoformat()
+                self.assertEqual(state["last_scheduled_delivery"], today)
+
     def test_no_private_email_in_public_configuration(self):
         content = (Path(newsletter.__file__).parent / "config.json").read_text(
             encoding="utf-8")
