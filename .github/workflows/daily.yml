@@ -6,6 +6,10 @@ on:
         description: Generate HTML preview without emailing
         type: boolean
         default: true
+  push:
+    branches: [main]
+    paths:
+      - '.github/mail-test-request.txt'
   schedule:
     - cron: '0,17,37 9 * * *'
       timezone: 'America/Los_Angeles'
