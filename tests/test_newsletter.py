@@ -135,6 +135,60 @@ class NewsRoundupTests(unittest.TestCase):
                 smtp.return_value.__enter__.return_value.login.assert_called_once_with(
                     "sender@example.com", "synthetic-test-password")
 
+    def test_corrects_misclassified_articles_from_actual_preview(self):
+        cases = [
+            ("obituaries", "Judge dismisses charges against actor Timothy Busfield",
+             "entertainment"),
+            ("entertainment", "Malibu Bryson Fire containment improves",
+             "local"),
+            ("gaming", "Beloved Fantasy Novel Series Redwall Sets Return",
+             "entertainment"),
+            ("entertainment", "Popular film star dies at 82",
+             "obituaries"),
+            ("gaming", "Nintendo announces a new Zelda video game",
+             "gaming"),
+        ]
+        for original, title, expected in cases:
+            with self.subTest(title=title):
+                record = make_story("one", original, title)
+                self.assertEqual(newsletter.categorize_story(record), expected)
+
+    def test_section_ordering_and_automatic_headline_sorting(self):
+        def story(key, category, title, published):
+            item = make_story(key, category, title)
+            item["published"] = published
+            item["summary"] = "A factual report was published."
+            item["related"] = []
+            return item
+
+        stories = [
+            story("lead", "local", "Local lead story", "2026-10-17T08:00:00+00:00"),
+            story("political", "politics", "National political update", "2026-10-17T07:00:00+00:00"),
+            story("technology", "technology", "Technology update", "2026-10-17T09:00:00+00:00"),
+            story("entertainment", "entertainment", "Movie casting update", "2026-10-17T09:30:00+00:00"),
+            story("new", "local", "Newest neighborhood headline", "2026-10-17T10:00:00+00:00"),
+            story("old", "local", "Older neighborhood headline", "2026-10-17T06:00:00+00:00"),
+            story("gaming", "gaming", "New video game announced", "2026-10-17T10:00:00+00:00"),
+            story("obituary", "obituaries", "Notable person died", "2026-10-17T10:00:00+00:00"),
+        ]
+        page = newsletter.render(
+            stories, {"newsletter_title": "Your Daily News Roundup"},
+            "Saturday, October 17, 2026", "cid:roundup-masthead")
+        self.assertIn("TOP STORY · LOS ANGELES", page)
+        sections = [
+            "POLITICS & WORLD",
+            "LOS ANGELES & THE SAN GABRIEL VALLEY",
+            "MOVIES, TELEVISION & ENTERTAINMENT",
+            "TECHNOLOGY",
+            "GAMING",
+            "IN MEMORIAM",
+        ]
+        for before, after in zip(sections, sections[1:]):
+            self.assertLess(page.index(before, page.index("National political update")),
+                            page.index(after, page.index("National political update")))
+        self.assertLess(page.index("Newest neighborhood headline"),
+                        page.index("Older neighborhood headline"))
+
     def test_no_private_email_in_public_configuration(self):
         content = (Path(newsletter.__file__).parent / "config.json").read_text(
             encoding="utf-8")
