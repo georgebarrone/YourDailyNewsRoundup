@@ -1,41 +1,58 @@
 # Your Daily News Roundup 📰
 
-Automated, newspaper-style daily newsletter with up to 12 useful articles, emailed to **barronejorge@gmail.com** from **yourdailynewsroundup@gmail.com**.
+A daily, newspaper-style HTML email digest powered by Python, RSS, and Google Gemini. The newsletter curates **up to 12** stories on factual, politically neutral current affairs, Los Angeles / Pasadena / South Pasadena / Alhambra, notable deaths, technology, and gaming.
 
-Focus: factual and politically neutral national politics, local Los Angeles / Pasadena / South Pasadena / Alhambra news, confirmed notable deaths, technology, and gaming.
+**Schedule:** 9:00 AM America/Los_Angeles, daily (best effort; GitHub Actions can be delayed). The workflow checks local LA time on both 16:00 and 17:00 UTC runs to handle daylight saving time.
 
-**Schedule:** 9 AM Los Angeles time daily (GitHub Actions is best-effort, and runs can be delayed). Runs at both 16:00 and 17:00 UTC; the workflow checks local LA time to handle daylight saving time.
+## Configure GitHub Actions Secrets
 
-## Setup: do this before the first email
+This repository is public. **Do not commit API keys, passwords, email addresses, or local .env files.**
 
-1. Create a Gemini API key at https://aistudio.google.com/apikey . The model in config.json defaults to `gemini-3.8-flash`; verify it is available in your free tier.
-2. Sign in to the dedicated sender Gmail. Enable 2-Step Verification and generate a **Google App Password** at https://myaccount.google.com/apppasswords . This option may be unavailable for some accounts.
-3. In the GitHub repository go to **Settings → Secrets and variables → Actions → New repository secret**. Add `GEMINI_API_KEY` and `GMAIL_APP_PASSWORD` (the sender's app password, **not** its normal password). Never commit or share the secrets.
-4. Go to **Actions → Daily News Roundup → Run workflow**. Keep **preview_only** checked. Download the **newsletter-preview** workflow artifact and open `preview.html`.
-5. Once the preview looks good, run manually with **preview_only unchecked** to send a test email. Scheduled runs will also send when both secrets have been configured.
+In **Settings → Secrets and variables → Actions → New repository secret**, set these four secrets:
 
-**Important:** This version sends via Gmail SMTP using an app password rather than OAuth. It does not need Gmail API credentials. If Google does not offer app passwords for your account, a Gmail OAuth or email-service integration would be needed instead.
+| Secret | Purpose |
+| --- | --- |
+| `GEMINI_API_KEY` | API key from https://aistudio.google.com/apikey |
+| `GMAIL_APP_PASSWORD` | Gmail App Password for the dedicated sender account (not the Gmail login password) |
+| `NEWSLETTER_SENDER_EMAIL` | Dedicated sender's email address |
+| `NEWSLETTER_RECIPIENT_EMAIL` | Inbox that receives the daily digest |
+
+Enable 2-Step Verification on the sender's Google account and create the App Password at https://myaccount.google.com/apppasswords . Email addresses and credentials are **read from environment variables during a GitHub Actions run**, never stored in `config.json`.
+
+**Existing installations:** After upgrading, add both new email-address secrets or mail sending will fail securely. The existing `GEMINI_API_KEY` and `GMAIL_APP_PASSWORD` secrets remain valid; no need to recreate them.
+
+## Run manually
+
+1. Open **Actions → Daily News Roundup → Run workflow**.
+2. Leave `preview_only` checked to build a preview **without sending** an email.
+3. After the run, download the `newsletter-preview` artifact and open `preview.html`.
+4. To test sending, run the workflow again with `preview_only` unchecked.
+
+Scheduled runs send the newsletter automatically (provided all secrets are configured). GitHub scheduling is best-effort; a delay beyond the allowed local-time hour can skip that day's run.
 
 ## How it works
 
-- Fetches the RSS feeds in `config.json`, keeping approximately the last 30 hours of news.
-- Sends headlines and short RSS excerpts to Gemini to select up to 12 relevant stories and generate original one-paragraph summaries.
-- Builds a mobile-friendly newspaper-style HTML email with links to original sources.
-- Stores identifiers of sent stories in `history.json` so the same exact links are not resent.
-- Skips sending when no qualifying stories appear.
+- Fetches configured RSS feeds from approximately the last 30 hours.
+- Uses Gemini (`gemini-3.8-flash` by default) to select important distinct stories and write short, original summaries based **only on RSS titles and excerpts**.
+- Creates a mobile-friendly HTML newsletter and links back to original publishers.
+- Saves hashes of emailed article URLs in `history.json` to avoid repeating exact links.
+- Skips sending when no qualifying stories are found.
 
-Because many RSS feeds contain only excerpts, **this initial version uses one-paragraph summaries** rather than inventing two-paragraph article summaries. It does not reproduce copyrighted articles. Broken feed endpoints should be removed or replaced. Feed endpoints are starting points and should be checked and replaced if publishers change them.
+Some publisher feeds can become unavailable, and an RSS excerpt may not contain enough information to fully summarize a long article. Summaries are not the full copyrighted article; consult original reporting for details. Political stories should be evaluated against trustworthy sources; automated summaries may make errors.
 
 ## Local preview
 
 ```bash
 python -m pip install -r requirements.txt
-# Set GEMINI_API_KEY as an environment variable
+# Set GEMINI_API_KEY in your local environment, without committing it.
 python newsletter.py --preview
 ```
 
-Then open `preview.html` in a browser.
+Open `preview.html` in your browser. To send from your computer, set the other three environment variables securely as well.
 
-## Security and limitations
+## Security
 
-This is a **public repository**. Store credentials in GitHub Actions Secrets only. Scheduled Actions can be delayed; a run delayed past the 9 AM local hour may skip that day. Feeds may fail or omit stories, and Gemini summaries should be checked against original linked reporting for important facts. Deduplication is by article URL rather than by event across publishers.
+- Never post secrets in issues, screenshots, chat, or commits.
+- `.env` and `preview.html` are ignored by Git.
+- The public Git history may still contain older file versions, even after current files are sanitized. A separate, carefully planned history rewrite would be necessary to remove older committed email addresses from commit history.
+- News history tracks URL hashes; this is not a database of subscriber information.
