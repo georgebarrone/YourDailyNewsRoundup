@@ -53,7 +53,9 @@ def _tmdb_get(endpoint, api_key, *, params=None):
     query["api_key"] = api_key
     response = requests.get(TMDB_API + endpoint, params=query, timeout=14,
                             headers={"Accept": "application/json", "User-Agent": "YourDailyNewsRoundup/2.1"})
-    response.raise_for_status()
+    if response.status_code >= 400:
+        # Do not include request URLs in exceptions: they contain the API key.
+        raise RuntimeError("TMDB returned HTTP " + str(response.status_code))
     return response.json()
 
 
@@ -69,7 +71,7 @@ def get_weekly_movies(config, today=None):
     results, visited = [], set()
     try:
         for page in (1, 2):
-            if len(results) >= max_movies:
+            if len(results) >= max_movies + 5:
                 break
             discovery = _tmdb_get(
                 "/discover/movie", api_key,
@@ -120,6 +122,6 @@ def get_weekly_movies(config, today=None):
         selected = results[:max_movies]
         LOG.info("Found %d US theatrical movies for %s to %s", len(selected), first, last)
         return selected, ("ok" if selected else "no_releases"), (first, last)
-    except (requests.RequestException, ValueError, TypeError, KeyError) as exc:
-        LOG.warning("TMDB theatrical movie lookup unavailable: %s", exc)
+    except (requests.RequestException, RuntimeError, ValueError, TypeError, KeyError) as exc:
+        LOG.warning("TMDB theatrical movie lookup unavailable (%s)", type(exc).__name__)
         return [], "unavailable", (first, last)
