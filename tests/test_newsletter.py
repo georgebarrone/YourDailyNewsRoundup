@@ -1,0 +1,121 @@
+"""Offline unit tests: no network calls, real Gemini requests, or Gmail access."""
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+import newsletter
+
+
+def make_story(key, category, title, domain="news.example", image=""):
+    return {
+        "id": key,
+        "category": category,
+        "title": title,
+        "url": "https://" + domain + "/articles/" + key,
+        "source": domain,
+        "domain": domain,
+        "published": "2026-10-17T09:00:00+00:00",
+        "excerpt": title + ". Additional reporting with useful facts about this event.",
+        "image": image,
+    }
+
+
+class NewsRoundupTests(unittest.TestCase):
+    def test_safe_links_and_images(self):
+        self.assertEqual(newsletter.safe_url("javascript:alert(1)"), "")
+        self.assertEqual(newsletter.safe_url("http://example.com/pic.jpg"), "")
+        self.assertEqual(newsletter.safe_url("https://example.com/pic.jpg"),
+                         "https://example.com/pic.jpg")
+        entry = {
+            "media_thumbnail": [{"url": "https://images.example/pasadena.jpg"}],
+            "media_content": [],
+        }
+        self.assertEqual(newsletter.image_from_entry(entry),
+                         "https://images.example/pasadena.jpg")
+
+    def test_same_event_and_distinct_topics(self):
+        a = make_story("a", "politics", "City council approves new zoning plan after vote")
+        b = make_story("b", "politics", "City council approves new zoning plan after vote")
+        c = make_story("c", "technology", "New gaming console announced with updated graphics")
+        self.assertTrue(newsletter.same_event(a, b))
+        self.assertFalse(newsletter.same_event(a, c))
+
+    def test_past_headlines_and_legacy_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "history.json"
+            path.write_text('["old-hash"]', encoding="utf-8")
+            history = newsletter.load_history(path)
+            self.assertEqual(history[0]["id"], "old-hash")
+            self.assertTrue(newsletter.recently_sent(
+                make_story("old-hash", "local", "Local city update"), history))
+
+    def test_markup_contains_photo_source_and_related_link(self):
+        feature = make_story("abc", "local", "Pasadena considers a new park",
+                             image="https://images.example/park.jpg")
+        feature["summary"] = "The city announced a proposed park project."
+        feature["related"] = [make_story("def", "local", "Pasadena park proposal considered",
+                                          domain="other.example")]
+        second = make_story("ghi", "technology", "New computing technology launches")
+        second["summary"] = "A company announced a new computer product."
+        second["related"] = []
+        page = newsletter.render(
+            [feature, second], {"newsletter_title": "Your Daily News Roundup"},
+            "Saturday, October 17, 2026", "cid:roundup-masthead")
+        self.assertIn("cid:roundup-masthead", page)
+        self.assertIn("https://images.example/park.jpg", page)
+        self.assertIn("other.example", page)
+        self.assertIn("TOP STORY", page)
+        self.assertIn("TECHNOLOGY", page)
+        self.assertNotIn("javascript:", page)
+
+    def test_gemini_groups_same_event_and_balances_categories(self):
+        local = make_story("l", "local", "Pasadena neighborhood meeting draws residents")
+        political = make_story("p", "politics", "Congress takes vote on new budget bill")
+        alternate = make_story(
+            "q", "politics", "Congress takes vote on new budget bill",
+            domain="independent.example")
+        tech = make_story("t", "technology", "New computer processor launched")
+        response = {
+            "stories": [
+                {"primary_id": "p", "related_ids": ["q"], "summary":
+                 "The legislature voted on a bill according to coverage from two outlets."},
+                {"primary_id": "l", "related_ids": [], "summary":
+                 "Residents met to discuss plans for a neighborhood improvement project."},
+                {"primary_id": "t", "related_ids": [], "summary":
+                 "A company has announced its latest processor and new performance features."},
+                {"primary_id": "q", "related_ids": [], "summary":
+                 "A second article about the same congressional budget vote was also published."}
+            ]
+        }
+        class FakeResponse:
+            text = json.dumps(response)
+        class FakeClient:
+            def __init__(self, *args, **kwargs):
+                pass
+            class models:
+                @staticmethod
+                def generate_content(**kwargs):
+                    return FakeResponse()
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "example-not-a-real-key"}):
+            with patch.object(newsletter.genai, "Client", FakeClient):
+                articles = newsletter.curate(
+                    [local, political, alternate, tech], [],
+                    {"max_articles": 12, "gemini_model": "mock-model"})
+        self.assertEqual(len(articles), 3)
+        self.assertEqual(articles[0]["category"], "local")
+        self.assertEqual(articles[1]["category"], "politics")
+        self.assertEqual(len(articles[1]["related"]), 1)
+
+    def test_no_private_email_in_public_configuration(self):
+        content = (Path(newsletter.__file__).parent / "config.json").read_text(
+            encoding="utf-8")
+        config = json.loads(content)
+        self.assertNotIn("sender", config)
+        self.assertNotIn("recipient", config)
+        self.assertNotIn("@gmail.com", content)
+
+
+if __name__ == "__main__":
+    unittest.main()
