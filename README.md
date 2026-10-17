@@ -2,7 +2,7 @@
 
 An independent, newspaper-style daily HTML email, powered by Python, publisher RSS feeds, Gemini, and GitHub Actions. It brings together up to twelve relevant news articles about factual politics, Los Angeles news, technology, gaming, confirmed notable deaths, movies, television, and entertainment, plus a separate weekly theatrical release guide.
 
-**Delivery:** Daily at 9 AM Pacific (automated, best effort).
+**Delivery:** The primary attempt is at 9:00 AM Pacific daily (best effort). Backup attempts at 9:17 and 9:37 AM Pacific run only if the day's scheduled edition has not already been delivered. GitHub Actions may delay or drop any individual scheduled run.
 
 ## What the newsletter includes
 
@@ -49,7 +49,7 @@ Email addresses and credentials are read from environment variables at runtime, 
 3. Open the downloaded HTML preview in a browser.
 4. For a delivery test, start a new workflow run with **preview_only** unchecked.
 
-Once configured, the existing schedule attempts delivery every day at 9 AM Pacific. GitHub Actions scheduled execution is best effort.
+Once configured, the schedule targets 9:00 AM Pacific daily, with recovery attempts at 9:17 and 9:37 AM Pacific. The delivery-state guard records the date only after a successful scheduled email, avoiding additional sends on later attempts. Manual live tests still operate independently. GitHub Actions execution remains best effort.
 
 Local preview:
 
@@ -64,6 +64,7 @@ Set GEMINI_API_KEY locally; optionally set TMDB_API_KEY to populate the theatric
 - movie_releases.py — optional TMDB movie listings with a Thursday-to-Wednesday opening window.
 - config.json — public RSS sources, topic quotas, and non-secret settings.
 - history.json — sent article IDs and public headlines.
+- delivery_state.json — most recently delivered scheduled edition date, preventing duplicate daily sends during retry windows.
 - .github/workflows/daily.yml — scheduled delivery and manual previews.
 - .github/workflows/check.yml — offline automated tests.
 - tests/ — unit tests without real network, Gemini, or Gmail activity.
@@ -76,4 +77,4 @@ Set GEMINI_API_KEY locally; optionally set TMDB_API_KEY to populate the theatric
 - The original newspaper masthead is not associated with any existing publisher. It uses the open-licensed [UnifrakturCook](https://github.com/google/fonts/tree/main/ofl/unifrakturcook) typeface and embeds only the resulting graphic.
 - TMDB provides the optional theatrical-release data, movie details and posters. The movie section displays TMDB attribution and the notice: **"This product uses the TMDB API but is not endorsed or certified by TMDB."** See [TMDB attribution](https://www.themoviedb.org/about/logos-attribution) and [API terms](https://www.themoviedb.org/api-terms-of-use).
 - U.S. theatrical listings do not guarantee Regal showtimes. Confirm on [Regal's website](https://www.regmovies.com/movies).
-- GitHub scheduled Actions may be delayed and miss the configured sending window.
+- GitHub scheduled Actions may be delayed or dropped, especially at the top of an hour. Backup attempts improve reliability but do not guarantee an exact delivery time.
