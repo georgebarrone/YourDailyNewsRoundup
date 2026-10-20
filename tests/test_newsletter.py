@@ -70,6 +70,83 @@ class NewsRoundupTests(unittest.TestCase):
         self.assertIn("TECHNOLOGY", page)
         self.assertNotIn("javascript:", page)
 
+    def test_gemini_retries_transient_503_and_succeeds(self):
+        class FakeAPIError(Exception):
+            def __init__(self, code):
+                self.code = code
+
+        class FakeClient:
+            class Models:
+                def __init__(self):
+                    self.calls = 0
+
+                def generate_content(self, **kwargs):
+                    self.calls += 1
+                    if self.calls < 3:
+                        raise FakeAPIError(503)
+                    return type("Response", (), {"text": '{"stories":[]}'})()
+
+            def __init__(self):
+                self.models = self.Models()
+
+        fake = FakeClient()
+        with patch.object(newsletter.gemini_errors, "APIError", FakeAPIError):
+            with patch.object(newsletter.time, "sleep") as sleep:
+                response = newsletter.generate_news_with_retry(fake, "test-model", "test")
+        self.assertEqual(response.text, '{"stories":[]}')
+        self.assertEqual(fake.models.calls, 3)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [15, 40])
+
+    def test_gemini_does_not_retry_permanent_errors(self):
+        class FakeAPIError(Exception):
+            def __init__(self, code):
+                self.code = code
+
+        class FakeClient:
+            class Models:
+                def __init__(self):
+                    self.calls = 0
+
+                def generate_content(self, **kwargs):
+                    self.calls += 1
+                    raise FakeAPIError(401)
+
+            def __init__(self):
+                self.models = self.Models()
+
+        fake = FakeClient()
+        with patch.object(newsletter.gemini_errors, "APIError", FakeAPIError):
+            with patch.object(newsletter.time, "sleep") as sleep:
+                with self.assertRaises(FakeAPIError):
+                    newsletter.generate_news_with_retry(fake, "test-model", "test")
+        self.assertEqual(fake.models.calls, 1)
+        sleep.assert_not_called()
+
+    def test_gemini_retries_stop_after_bounded_attempts(self):
+        class FakeAPIError(Exception):
+            def __init__(self, code):
+                self.code = code
+
+        class FakeClient:
+            class Models:
+                def __init__(self):
+                    self.calls = 0
+
+                def generate_content(self, **kwargs):
+                    self.calls += 1
+                    raise FakeAPIError(503)
+
+            def __init__(self):
+                self.models = self.Models()
+
+        fake = FakeClient()
+        with patch.object(newsletter.gemini_errors, "APIError", FakeAPIError):
+            with patch.object(newsletter.time, "sleep") as sleep:
+                with self.assertRaises(FakeAPIError):
+                    newsletter.generate_news_with_retry(fake, "test-model", "test")
+        self.assertEqual(fake.models.calls, 4)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [15, 40, 90])
+
     def test_gemini_groups_same_event_and_balances_categories(self):
         local = make_story("l", "local", "Pasadena neighborhood meeting draws residents")
         political = make_story("p", "politics", "Congress takes vote on new budget bill")
