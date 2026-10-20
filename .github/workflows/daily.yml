@@ -20,6 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Rerunning an older failed run should still use the latest code and
+          # delivery state, rather than a stale SHA from the original attempt.
+          ref: main
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
@@ -57,6 +61,23 @@ jobs:
             git add history.json delivery_state.json
             if ! git diff --cached --quiet; then
               git commit -m "Update emailed stories"
-              git push
+              # Code or documentation may have changed while the newsletter
+              # was being generated. Rebase the history-only commit onto
+              # current main before pushing rather than rejecting it.
+              for attempt in 1 2 3; do
+                git fetch origin main
+                if ! git rebase origin/main; then
+                  git rebase --abort
+                  echo "Could not merge delivery history with newer remote changes" >&2
+                  exit 1
+                fi
+                if git push origin HEAD:main; then
+                  exit 0
+                fi
+                echo "Remote moved during history update (attempt $attempt); retrying" >&2
+                sleep 3
+              done
+              echo "Could not save delivery history after 3 pushes" >&2
+              exit 1
             fi
           fi
