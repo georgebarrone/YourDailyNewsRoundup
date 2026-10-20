@@ -3,7 +3,6 @@ import argparse
 import base64
 import hashlib
 import html
-import io
 import json
 import logging
 import os
@@ -21,11 +20,11 @@ from zoneinfo import ZoneInfo
 import feedparser
 import requests
 from google import genai
-from PIL import Image, ImageDraw, ImageFont
 
 from movie_releases import get_weekly_movies, REGAL_MOVIES_URL, PREFERRED_REGAL_THEATERS, TMDB_LOGO
 
 ROOT = Path(__file__).resolve().parent
+MASTHEAD_PATH = ROOT / "assets" / "masthead.png"
 CATEGORIES = ["politics", "local", "entertainment", "technology", "gaming", "obituaries"]
 LABELS = {
     "politics": "POLITICS & WORLD",
@@ -43,8 +42,6 @@ STOPWORDS = {
     "is", "are", "was", "will", "its", "their", "has", "have", "by", "up",
     "this", "that", "how", "what", "why", "us", "u", "s", "latest",
 }
-# SIL Open Font License; runtime-only fetch, with an installed serif fallback.
-FONT_URL = "https://raw.githubusercontent.com/google/fonts/main/ofl/unifrakturcook/UnifrakturCook-Bold.ttf"
 LOG = logging.getLogger("roundup")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
@@ -396,37 +393,11 @@ def curate(items, history, config):
 
 
 def masthead_png():
-    """Create a unique Fraktur-style newspaper wordmark; never use publisher marks."""
-    try:
-        response = requests.get(FONT_URL, timeout=12)
-        response.raise_for_status()
-        face = io.BytesIO(response.content)
-    except requests.RequestException as exc:
-        LOG.warning("Open-licensed masthead font unavailable; using serif fallback: %s", exc)
-        face = None
-    image = Image.new("RGB", (1200, 170), "#fffdf7")
-    draw = ImageDraw.Draw(image)
-    title = "Your Daily News Roundup"
-    font = None
-    for size in range(102, 35, -2):
-        try:
-            candidate = ImageFont.truetype(face if face else "DejaVuSerif-Bold.ttf", size)
-            if face:
-                face.seek(0)
-        except (OSError, ValueError):
-            candidate = ImageFont.load_default()
-        left, top, right, bottom = draw.textbbox((0, 0), title, font=candidate)
-        if right - left < 1140:
-            font = candidate
-            break
-    bounds = draw.textbbox((0, 0), title, font=font)
-    w = bounds[2] - bounds[0]
-    h = bounds[3] - bounds[1]
-    draw.text(((1200 - w) / 2 - bounds[0], (170 - h) / 2 - bounds[1]),
-              title, font=font, fill="#171614")
-    output = io.BytesIO()
-    image.save(output, format="PNG", optimize=True)
-    return output.getvalue()
+    """Load the original static masthead graphic without network access."""
+    picture = MASTHEAD_PATH.read_bytes()
+    if not picture.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ValueError("Invalid masthead PNG asset")
+    return picture
 
 
 def section_header(name):

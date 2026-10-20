@@ -108,10 +108,12 @@ class NewsRoundupTests(unittest.TestCase):
         self.assertEqual(articles[1]["category"], "politics")
         self.assertEqual(len(articles[1]["related"]), 1)
 
-    def test_fallback_masthead_is_a_valid_png(self):
-        with patch.object(newsletter.requests, "get", side_effect=newsletter.requests.RequestException("offline")):
+    def test_static_masthead_matches_committed_png_and_needs_no_network(self):
+        with patch.object(newsletter.requests, "get", side_effect=AssertionError("masthead should not fetch")):
             data = newsletter.masthead_png()
         self.assertTrue(data.startswith(b"\x89PNG\r\n\x1a\n"))
+        self.assertEqual(data, newsletter.MASTHEAD_PATH.read_bytes())
+        self.assertGreater(len(data), 1000)
 
     def test_email_mime_embeds_masthead_and_keeps_credentials_runtime_only(self):
         story = make_story("m", "local", "Local public meeting planned")

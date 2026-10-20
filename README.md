@@ -74,7 +74,7 @@ Set GEMINI_API_KEY locally; optionally set TMDB_API_KEY to populate the theatric
 - Summaries are derived from RSS excerpts, not complete copyrighted articles. Automated summarization may omit context; visit original sources for verification.
 - Political claims are compared across independently published reports only when those sources are available; this is not a professional fact-checking service.
 - Publisher RSS image URLs may expire or be blocked; images are not downloaded or rehosted.
-- The original newspaper masthead is not associated with any existing publisher. It uses the open-licensed [UnifrakturCook](https://github.com/google/fonts/tree/main/ofl/unifrakturcook) typeface and embeds only the resulting graphic.
+- The newsletter uses original blackletter-inspired artwork stored in `assets/masthead.png`. It is independently branded, not affiliated with another newspaper. The static PNG is embedded in previews and emails, without downloading a font at runtime.
 - TMDB provides the optional theatrical-release data, movie details and posters. The movie section displays TMDB attribution and the notice: **"This product uses the TMDB API but is not endorsed or certified by TMDB."** See [TMDB attribution](https://www.themoviedb.org/about/logos-attribution) and [API terms](https://www.themoviedb.org/api-terms-of-use).
 - U.S. theatrical listings do not guarantee Regal showtimes. Confirm on [Regal's website](https://www.regmovies.com/movies).
 - GitHub scheduled Actions may be delayed or dropped, especially at the top of an hour. Backup attempts improve reliability but do not guarantee an exact delivery time.
