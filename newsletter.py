@@ -9,6 +9,7 @@ import os
 import re
 import smtplib
 import ssl
+import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
@@ -20,6 +21,7 @@ from zoneinfo import ZoneInfo
 import feedparser
 import requests
 from google import genai
+from google.genai import errors as gemini_errors
 
 from movie_releases import get_weekly_movies, REGAL_MOVIES_URL, PREFERRED_REGAL_THEATERS, TMDB_LOGO
 
@@ -282,6 +284,48 @@ def sample_for_ai(items):
     return sample
 
 
+# Keep the original daily editorial behavior, but survive temporary Gemini
+# overloads (HTTP 503), rate limits, and short server outages. SDK-level
+# retries may already run before these additional backoff attempts.
+GEMINI_RETRY_DELAYS = (15, 40, 90)
+GEMINI_TRANSIENT_CODES = {408, 429, 500, 502, 503, 504}
+
+
+def generate_news_with_retry(client, model, prompt):
+    """Retry transient Gemini API errors, never invalid credentials or bad input."""
+    for attempt in range(len(GEMINI_RETRY_DELAYS) + 1):
+        try:
+            return client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config={"response_mime_type": "application/json", "temperature": 0.25},
+            )
+        except gemini_errors.APIError as exc:
+            status = getattr(exc, "code", None)
+            try:
+                status = int(status)
+            except (TypeError, ValueError):
+                status = None
+            # Don't retry invalid keys (401/403), unknown models (404),
+            # invalid request payloads (400), or any other permanent error.
+            if status not in GEMINI_TRANSIENT_CODES:
+                raise
+            if attempt >= len(GEMINI_RETRY_DELAYS):
+                LOG.error(
+                    "Gemini HTTP %s persisted after %d attempts. "
+                    "No newsletter was sent; the next scheduled run can retry.",
+                    status, attempt + 1
+                )
+                raise
+            delay = GEMINI_RETRY_DELAYS[attempt]
+            LOG.warning(
+                "Gemini temporarily unavailable (HTTP %s); retrying in %s seconds "
+                "(attempt %d/%d)",
+                status, delay, attempt + 1, len(GEMINI_RETRY_DELAYS) + 1
+            )
+            time.sleep(delay)
+
+
 def curate(items, history, config):
     """Return publisher-backed stories, grouping independently published coverage of an event."""
     sample = sample_for_ai(items)
@@ -333,11 +377,7 @@ def curate(items, history, config):
         "\nToday's RSS items:\n" + json.dumps(model_input, ensure_ascii=False)
     )
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    response = client.models.generate_content(
-        model=config["gemini_model"],
-        contents=prompt,
-        config={"response_mime_type": "application/json", "temperature": 0.25},
-    )
+    response = generate_news_with_retry(client, config["gemini_model"], prompt)
     if not response.text:
         raise RuntimeError("Gemini returned an empty response")
     data = json.loads(response.text)
