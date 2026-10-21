@@ -218,8 +218,8 @@ class NewsRoundupTests(unittest.TestCase):
                 result = newsletter.generate_news_with_fallback(
                     fake, ["missing", "invalid", "ok"], "test")
         self.assertEqual(json.loads(result.text), {"stories": []})
-        self.assertEqual(fake.models.calls, ["missing", "missing", "invalid", "ok"])
-        sleep.assert_called_once_with(10)
+        self.assertEqual(fake.models.calls, ["missing", "invalid", "ok"])
+        sleep.assert_not_called()
 
     def test_gemini_groups_same_event_and_balances_categories(self):
         local = make_story("l", "local", "Pasadena neighborhood meeting draws residents")
