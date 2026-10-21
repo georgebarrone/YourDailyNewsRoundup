@@ -147,6 +147,80 @@ class NewsRoundupTests(unittest.TestCase):
         self.assertEqual(fake.models.calls, 4)
         self.assertEqual([call.args[0] for call in sleep.call_args_list], [15, 40, 90])
 
+
+    def test_gemini_uses_backup_after_persistent_503(self):
+        class FakeAPIError(Exception):
+            def __init__(self, code):
+                self.code = code
+
+        class FakeModels:
+            def __init__(self):
+                self.calls = []
+
+            def generate_content(self, **kwargs):
+                model = kwargs["model"]
+                self.calls.append(model)
+                if model == "overloaded":
+                    raise FakeAPIError(503)
+                return type("Response", (), {"text": '{"stories":[]}'})()
+
+        fake = type("Client", (), {"models": FakeModels()})()
+        with patch.object(newsletter.gemini_errors, "APIError", FakeAPIError):
+            with patch.object(newsletter.time, "sleep") as sleep:
+                result = newsletter.generate_news_with_fallback(
+                    fake, ["overloaded", "backup", "unused"], "test")
+        self.assertEqual(json.loads(result.text), {"stories": []})
+        self.assertEqual(fake.models.calls, ["overloaded", "overloaded", "backup"])
+        sleep.assert_called_once_with(10)
+
+    def test_gemini_fallback_does_not_hide_credential_errors(self):
+        class FakeAPIError(Exception):
+            def __init__(self, code):
+                self.code = code
+
+        class FakeModels:
+            def __init__(self):
+                self.calls = []
+
+            def generate_content(self, **kwargs):
+                self.calls.append(kwargs["model"])
+                raise FakeAPIError(403)
+
+        fake = type("Client", (), {"models": FakeModels()})()
+        with patch.object(newsletter.gemini_errors, "APIError", FakeAPIError):
+            with patch.object(newsletter.time, "sleep") as sleep:
+                with self.assertRaises(FakeAPIError):
+                    newsletter.generate_news_with_fallback(fake, ["primary", "backup"], "test")
+        self.assertEqual(fake.models.calls, ["primary"])
+        sleep.assert_not_called()
+
+    def test_gemini_fallback_skips_missing_model_and_invalid_json(self):
+        class FakeAPIError(Exception):
+            def __init__(self, code):
+                self.code = code
+
+        class FakeModels:
+            def __init__(self):
+                self.calls = []
+
+            def generate_content(self, **kwargs):
+                model = kwargs["model"]
+                self.calls.append(model)
+                if model == "missing":
+                    raise FakeAPIError(404)
+                if model == "invalid":
+                    return type("Response", (), {"text": "not json"})()
+                return type("Response", (), {"text": '{"stories":[]}'})()
+
+        fake = type("Client", (), {"models": FakeModels()})()
+        with patch.object(newsletter.gemini_errors, "APIError", FakeAPIError):
+            with patch.object(newsletter.time, "sleep") as sleep:
+                result = newsletter.generate_news_with_fallback(
+                    fake, ["missing", "invalid", "ok"], "test")
+        self.assertEqual(json.loads(result.text), {"stories": []})
+        self.assertEqual(fake.models.calls, ["missing", "missing", "invalid", "ok"])
+        sleep.assert_called_once_with(10)
+
     def test_gemini_groups_same_event_and_balances_categories(self):
         local = make_story("l", "local", "Pasadena neighborhood meeting draws residents")
         political = make_story("p", "politics", "Congress takes vote on new budget bill")

@@ -37,5 +37,9 @@
       "https://www.hollywoodreporter.com/feed/"
     ]
   },
-  "max_weekly_movies": 5
+  "max_weekly_movies": 5,
+  "gemini_fallback_models": [
+    "gemini-3.6-flash",
+    "gemini-3.5-flash-lite"
+  ]
 }

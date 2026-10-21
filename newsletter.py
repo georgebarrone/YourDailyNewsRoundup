@@ -291,9 +291,9 @@ GEMINI_RETRY_DELAYS = (15, 40, 90)
 GEMINI_TRANSIENT_CODES = {408, 429, 500, 502, 503, 504}
 
 
-def generate_news_with_retry(client, model, prompt):
+def generate_news_with_retry(client, model, prompt, delays=GEMINI_RETRY_DELAYS):
     """Retry transient Gemini API errors, never invalid credentials or bad input."""
-    for attempt in range(len(GEMINI_RETRY_DELAYS) + 1):
+    for attempt in range(len(delays) + 1):
         try:
             return client.models.generate_content(
                 model=model,
@@ -310,21 +310,55 @@ def generate_news_with_retry(client, model, prompt):
             # invalid request payloads (400), or any other permanent error.
             if status not in GEMINI_TRANSIENT_CODES:
                 raise
-            if attempt >= len(GEMINI_RETRY_DELAYS):
+            if attempt >= len(delays):
                 LOG.error(
-                    "Gemini HTTP %s persisted after %d attempts. "
-                    "No newsletter was sent; the next scheduled run can retry.",
-                    status, attempt + 1
+                    "Gemini model %s returned HTTP %s after %d attempts.",
+                    model, status, attempt + 1
                 )
                 raise
-            delay = GEMINI_RETRY_DELAYS[attempt]
+            delay = delays[attempt]
             LOG.warning(
                 "Gemini temporarily unavailable (HTTP %s); retrying in %s seconds "
                 "(attempt %d/%d)",
-                status, delay, attempt + 1, len(GEMINI_RETRY_DELAYS) + 1
+                status, delay, attempt + 1, len(delays) + 1
             )
             time.sleep(delay)
 
+
+
+def generate_news_with_fallback(client, models, prompt):
+    """Try available models in order if one is overloaded or unavailable.
+
+    Keep the existing strict rejection of invalid credentials and bad requests.
+    One short retry per model avoids spending minutes stuck on an overloaded
+    primary model. Only valid JSON results are accepted for the newsletter.
+    """
+    last_error = None
+    for model in dict.fromkeys(models):
+        try:
+            response = generate_news_with_retry(client, model, prompt, delays=(10,))
+            if not response.text:
+                raise ValueError("Gemini returned an empty response")
+            json.loads(response.text)
+            if model != models[0]:
+                LOG.info("Successfully curated newsletter using backup model %s", model)
+            return response
+        except gemini_errors.APIError as exc:
+            status = getattr(exc, "code", None)
+            try:
+                status = int(status)
+            except (TypeError, ValueError):
+                status = None
+            # API-key, permission and invalid-input errors should surface
+            # immediately. Model not found (404) can use a supported backup.
+            if status not in GEMINI_TRANSIENT_CODES and status != 404:
+                raise
+            last_error = exc
+            LOG.warning("Gemini model %s unavailable (HTTP %s); trying next model", model, status)
+        except (ValueError, TypeError) as exc:
+            last_error = exc
+            LOG.warning("Gemini model %s returned invalid JSON; trying next model", model)
+    raise RuntimeError("All Gemini models failed; newsletter was not sent") from last_error
 
 def curate(items, history, config):
     """Return publisher-backed stories, grouping independently published coverage of an event."""
@@ -377,7 +411,8 @@ def curate(items, history, config):
         "\nToday's RSS items:\n" + json.dumps(model_input, ensure_ascii=False)
     )
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    response = generate_news_with_retry(client, config["gemini_model"], prompt)
+    models = [config["gemini_model"], *config.get("gemini_fallback_models", [])]
+    response = generate_news_with_fallback(client, models, prompt)
     if not response.text:
         raise RuntimeError("Gemini returned an empty response")
     data = json.loads(response.text)
