@@ -8,7 +8,7 @@ An independent, newspaper-style daily HTML email, powered by Python, publisher R
 
 - Custom blackletter-inspired masthead, featured headlines, serif typography, newspaper dividers, and mobile-friendly HTML.
 - Up to 12 original news summaries with publisher links, balancing politics, Los Angeles-area news, major entertainment announcements, technology, gaming, and confirmed notable deaths.
-- Publisher-provided article images when available, with source attribution and links to original reporting. Mail clients may block remote images.
+- Publisher-provided article images, downloaded and optimized as inline email attachments when available, with source attribution and links to original reporting. Unavailable images are automatically omitted without broken-image placeholders.
 - News without filler, duplication of same-event reporting, or unsupported claims of independent verification.
 - **New at the Movies This Week:** a separate list of up to five U.S. theatrical movie openings (not counted toward the 12 news articles), with dates and film posters when available.
 
@@ -73,7 +73,7 @@ Set GEMINI_API_KEY locally; optionally set TMDB_API_KEY to populate the theatric
 
 - Summaries are derived from RSS excerpts, not complete copyrighted articles. Automated summarization may omit context; visit original sources for verification.
 - Political claims are compared across independently published reports only when those sources are available; this is not a professional fact-checking service.
-- Publisher RSS image URLs may expire or be blocked; images are not downloaded or rehosted.
+- Publisher RSS image URLs may expire, reject automated downloads, or return invalid formats. Each issue downloads and verifies candidate images with bounded time and size limits, then attaches successfully retrieved JPEGs directly to the email; failures are omitted cleanly. HTML previews include the successful pictures as data URLs. No image hosting service is required.
 - The newsletter uses original blackletter-inspired artwork stored in `assets/masthead.png`. It is independently branded, not affiliated with another newspaper. The static PNG is embedded in previews and emails, without downloading a font at runtime.
 - TMDB provides the optional theatrical-release data, movie details and posters. The movie section displays TMDB attribution and the notice: **"This product uses the TMDB API but is not endorsed or certified by TMDB."** See [TMDB attribution](https://www.themoviedb.org/about/logos-attribution) and [API terms](https://www.themoviedb.org/api-terms-of-use).
 - U.S. theatrical listings do not guarantee Regal showtimes. Confirm on [Regal's website](https://www.regmovies.com/movies).

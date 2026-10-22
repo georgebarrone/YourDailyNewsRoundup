@@ -14,6 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from email.message import EmailMessage
+from image_embed import email_image_src, prepare_images
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
@@ -486,7 +487,7 @@ def link(url, text, style):
 
 
 def photo_markup(story, large=False):
-    image = safe_url(story.get("image"))
+    image = email_image_src(story.get("image"))
     if not image:
         return ""
     size = "width:100%;max-width:650px;height:auto;" if large else "width:100%;max-width:650px;height:auto;"
@@ -571,11 +572,12 @@ def cinema_markup(movies, status, week):
         classification = html.escape(movie["type"])
         movie_url = html.escape(movie["url"], quote=True)
         artwork = ""
-        if movie["poster"]:
+        poster_src = email_image_src(movie.get("poster"))
+        if poster_src:
             artwork = (
                 '<td style="width:90px;padding:12px 15px 12px 0;vertical-align:top">'
                 '<a href="' + movie_url + '">'
-                '<img src="' + html.escape(movie["poster"], quote=True)
+                '<img src="' + html.escape(poster_src, quote=True)
                 + '" alt="Poster for ' + html.escape(movie["title"], quote=True)
                 + '" width="90" style="display:block;width:90px;max-width:90px;'
                 'height:auto;border:0"></a></td>'
@@ -677,8 +679,8 @@ def render(stories, config, edition_date, masthead_src, movies=None, movie_statu
     footer = (
         '<tr><td style="border-top:3px double #191919;padding-top:22px;'
         'text-align:center;font:11px/1.6 Arial,sans-serif;color:#666">'
-        'Original summaries derived from news RSS snippets. Images, when provided,'
-        ' are linked from the original publisher and may not display in all email clients.'
+        'Original summaries derived from news RSS snippets. Available publisher images'
+        ' are embedded in the email; unavailable pictures are omitted.'
         ' Reporting may be incomplete; follow source links for full context.'
         '<br><strong>YOUR DAILY NEWS ROUNDUP</strong></td></tr>'
         '</table></td></tr></table></body></html>'
@@ -686,7 +688,7 @@ def render(stories, config, edition_date, masthead_src, movies=None, movie_statu
     return top + content + footer
 
 
-def send(page, masthead, config, date):
+def send(page, masthead, config, date, images=None):
     sender = os.environ.get("NEWSLETTER_SENDER_EMAIL", "").strip()
     recipient = os.environ.get("NEWSLETTER_RECIPIENT_EMAIL", "").strip()
     password = os.environ.get("GMAIL_APP_PASSWORD", "").replace(" ", "")
@@ -701,10 +703,16 @@ def send(page, masthead, config, date):
         "Please open it in a mail application that supports HTML."
     )
     message.add_alternative(page, subtype="html")
-    message.get_payload()[-1].add_related(
+    html_part = message.get_payload()[-1]
+    html_part.add_related(
         masthead, maintype="image", subtype="png", cid="<roundup-masthead>",
         disposition="inline", filename="roundup-masthead.png"
     )
+    for cid, jpeg in (images or {}).items():
+        html_part.add_related(
+            jpeg, maintype="image", subtype="jpeg", cid=f"<{cid}>",
+            disposition="inline", filename=f"{cid}.jpg"
+        )
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context(), timeout=30) as smtp:
         smtp.login(sender, password)
         smtp.send_message(message)
@@ -749,18 +757,21 @@ def main():
         return
     date = local_now.strftime("%A, %B %d, %Y")
     masthead = masthead_png()
+    prepared_stories, prepared_movies, images = prepare_images(
+        stories, movies, preview=args.preview)
     if args.preview:
         inline = "data:image/png;base64," + base64.b64encode(masthead).decode("ascii")
         (ROOT / "preview.html").write_text(
-            render(stories, config, date, inline, movies, movie_status, movie_week),
+            render(prepared_stories, config, date, inline,
+                   prepared_movies, movie_status, movie_week),
             encoding="utf-8"
         )
         LOG.info("Created HTML preview with %d stories and %d movie openings",
                  len(stories), len(movies))
         return
-    page = render(stories, config, date, "cid:roundup-masthead",
-                  movies, movie_status, movie_week)
-    send(page, masthead, config, date)
+    page = render(prepared_stories, config, date, "cid:roundup-masthead",
+                  prepared_movies, movie_status, movie_week)
+    send(page, masthead, config, date, images)
     if args.scheduled:
         delivery_file.write_text(
             json.dumps({"last_scheduled_delivery": local_date}, indent=2) + "\n",
