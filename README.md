@@ -14,7 +14,7 @@ An independent, newspaper-style daily HTML email, powered by Python, publisher R
 
 ## Weekly movie releases and Regal
 
-The movie guide follows a **Thursday-through-Wednesday** release week, including films with Friday theatrical dates. U.S. theatrical release dates come from the **TMDB (The Movie Database)** API, prioritizing wide theatrical openings and occasionally including limited theatrical runs.
+The movie guide **resets every Monday** to preview the *coming Thursday-through-Wednesday* theatrical release window, including films with Friday theatrical dates. Thursday through Sunday it continues showing the films that have just opened; beginning Monday it looks ahead to the next Thursday so Wednesday's newsletter includes tomorrow's releases. U.S. theatrical release dates come from the **TMDB (The Movie Database)** API, prioritizing wide theatrical openings and occasionally including limited theatrical runs.
 
 The section also links to [Regal's official movie listings](https://www.regmovies.com/movies), where you can select a theater and verify showtimes or book tickets.
 
@@ -61,7 +61,7 @@ Set GEMINI_API_KEY locally; optionally set TMDB_API_KEY to populate the theatric
 ## Files
 
 - newsletter.py — publisher feeds, Gemini news curation, formatting, email delivery.
-- movie_releases.py — optional TMDB movie listings with a Thursday-to-Wednesday opening window.
+- movie_releases.py — optional TMDB movie listings that reset each Monday to the upcoming Thursday-to-Wednesday opening window.
 - config.json — public RSS sources, topic quotas, and non-secret settings.
 - history.json — sent article IDs and public headlines.
 - delivery_state.json — most recently delivered scheduled edition date, preventing duplicate daily sends during retry windows.

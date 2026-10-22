@@ -30,9 +30,15 @@ PREFERRED_REGAL_THEATERS = (
 
 
 def opening_week(day=None):
-    """Return the Thursday-Wednesday opening window containing the given day."""
+    """Show the next Thursday's films beginning Monday, through the following Wednesday.
+
+    Thursday-Sunday keeps the releases that have just opened. On Monday the
+    guide resets to the forthcoming Thursday-Wednesday theatrical window.
+    """
     day = day or date.today()
     thursday = day - timedelta(days=(day.weekday() - 3) % 7)
+    if day.weekday() <= 2:  # Monday, Tuesday, Wednesday: look ahead.
+        thursday += timedelta(days=7)
     return thursday, thursday + timedelta(days=6)
 
 
