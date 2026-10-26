@@ -713,9 +713,21 @@ def send(page, masthead, config, date, images=None):
             jpeg, maintype="image", subtype="jpeg", cid=f"<{cid}>",
             disposition="inline", filename=f"{cid}.jpg"
         )
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context(), timeout=30) as smtp:
-        smtp.login(sender, password)
-        smtp.send_message(message)
+    # Gmail occasionally drops SMTP connections during AUTH. Retry transient
+    # disconnects, but do not retry rejected credentials.
+    import time
+    for attempt in range(1, 4):
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context(), timeout=45) as smtp:
+                smtp.login(sender, password)
+                smtp.send_message(message)
+            return
+        except (smtplib.SMTPServerDisconnected, TimeoutError, OSError) as exc:
+            if attempt == 3:
+                raise
+            delay = 10 * attempt
+            LOG.warning("Transient SMTP connection error on attempt %d/3 (%s); retrying in %ds", attempt, type(exc).__name__, delay)
+            time.sleep(delay)
 
 
 def save_history(path, history, stories):
