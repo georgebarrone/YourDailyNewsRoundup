@@ -7,9 +7,10 @@ on:
         type: boolean
         default: true
   schedule:
-    # Temporary Oct 17 diagnostic: 17:20/17:30/17:40 UTC = 10:20/10:30/10:40 PDT.
-    # Restore a timezone-aware 9 AM Pacific schedule after the test.
-    - cron: '20,30,40 17 * * *'
+    # Daily Pacific delivery attempts. Later slots serve as backups; 
+    # newsletter.py --scheduled skips sending a second edition on the same day.
+    - cron: '6,28,34 12 * * *'
+      timezone: 'America/Los_Angeles'
 permissions:
   contents: write
 concurrency:
